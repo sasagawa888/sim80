@@ -1,4 +1,6 @@
 ; test
 ORG 0
 LD A,1
+LD HL,100h
+LD A,(HL)
 HALT

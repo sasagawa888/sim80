@@ -8,30 +8,38 @@ unsigned short INDEX = 0;
 
 static void rstrip(char *s)
 {
-    int n = (int)strlen(s);
-    while (n > 0 && (s[n-1] == '\n' || s[n-1] == '\r' || isspace((unsigned char)s[n-1])))
-        s[--n] = 0;
+    int n = (int) strlen(s);
+    while (n > 0
+	   && (s[n - 1] == '\n' || s[n - 1] == '\r'
+	       || isspace((unsigned char) s[n - 1])))
+	s[--n] = 0;
 }
 
 static void remove_comment(char *s)
 {
     // after ';' remove comment 
     for (int i = 0; s[i]; i++) {
-        if (s[i] == ';') { s[i] = 0; break; }
+	if (s[i] == ';') {
+	    s[i] = 0;
+	    break;
+	}
     }
 }
 
 static char *lskip(char *s)
 {
-    while (*s && isspace((unsigned char)*s)) s++;
+    while (*s && isspace((unsigned char) *s))
+	s++;
     return s;
 }
 
 static int ieq(const char *a, const char *b)
 {
     while (*a && *b) {
-        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return 0;
-        a++; b++;
+	if (tolower((unsigned char) *a) != tolower((unsigned char) *b))
+	    return 0;
+	a++;
+	b++;
     }
     return *a == 0 && *b == 0;
 }
@@ -41,50 +49,52 @@ static int parse_num(const char *s, unsigned int *out)
     // dec  or hex(0x.. or ..h). e.g. 10, 0x10, 10h
     char buf[128];
     size_t n = strlen(s);
-    if (n >= sizeof(buf)) return 0;
+    if (n >= sizeof(buf))
+	return 0;
     strcpy(buf, s);
 
     // space skip
     char *p = buf;
-    while (*p && isspace((unsigned char)*p)) p++;
+    while (*p && isspace((unsigned char) *p))
+	p++;
 
     // hex last h/H e.g. 16h 16H
     n = strlen(p);
-    if (n > 0 && (p[n-1] == 'h' || p[n-1] == 'H')) {
-        p[n-1] = 0;
-        *out = (unsigned int)strtoul(p, NULL, 16);
-        return 1;
+    if (n > 0 && (p[n - 1] == 'h' || p[n - 1] == 'H')) {
+	p[n - 1] = 0;
+	*out = (unsigned int) strtoul(p, NULL, 16);
+	return 1;
     }
-
     // hex
     if (n >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
-        *out = (unsigned int)strtoul(p, NULL, 16);
-        return 1;
+	*out = (unsigned int) strtoul(p, NULL, 16);
+	return 1;
     }
     // dec
-    *out = (unsigned int)strtoul(p, NULL, 10);
+    *out = (unsigned int) strtoul(p, NULL, 10);
     return 1;
 }
 
 static void emit8(unsigned int v)
 {
-    ram[INDEX++] = (unsigned char)(v & 0xFF);
+    printf("%02X ",v);
+    ram[INDEX++] = (unsigned char) (v & 0xFF);
 }
 
-/*
+
 static void emit16(unsigned int v)
 {
     // Z80　0x1234 -> 0x34 0x12
     emit8(v & 0xFF);
     emit8((v >> 8) & 0xFF);
 }
-*/
+
 
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        printf("usage: asm80 file.asm [out.bin]\n");
-        return 1;
+	printf("usage: asm80 file.asm [out.bin]\n");
+	return 1;
     }
 
     const char *infile = argv[1];
@@ -92,10 +102,9 @@ int main(int argc, char *argv[])
 
     FILE *fp = fopen(infile, "r");
     if (!fp) {
-        printf("cannot open file: %s\n", infile);
-        return 1;
+	printf("cannot open file: %s\n", infile);
+	return 1;
     }
-
     // Initialize RAM 
     memset(ram, 0x00, sizeof(ram));
     INDEX = 0;
@@ -104,65 +113,101 @@ int main(int argc, char *argv[])
     int lineno = 0;
 
     while (fgets(line, sizeof(line), fp)) {
-        lineno++;
-        rstrip(line);
-        remove_comment(line);
+	lineno++;
+	rstrip(line);
+	remove_comment(line);
 
-        char *p = lskip(line);
-        if (*p == 0) continue; // null line
+	char *p = lskip(line);
+	if (*p == 0)
+	    continue;		// null line
 
-        // tokener
-        // e.g. "LD A,1" -> "LD" "A" "1"
-        char *tok1 = strtok(p, " \t,");
-        if (!tok1) continue;
+	// tokener
+	// e.g. "LD A,1" -> "LD" "A" "1"
+	char *tok1 = strtok(p, " \t,");
+	if (!tok1)
+	    continue;
 
-        // ORG addr
-        if (ieq(tok1, "ORG")) {
-            char *tok2 = strtok(NULL, " \t,");
-            if (!tok2) { printf("line %d: ORG needs address\n", lineno); return 1; }
-            unsigned int v;
-            parse_num(tok2, &v);
-            INDEX = (unsigned short)(v & 0xFFFF);
-            continue;
-        }
+	// ORG addr
+	if (ieq(tok1, "ORG")) {
+	    char *tok2 = strtok(NULL, " \t,");
+	    if (!tok2) {
+		printf("line %d: ORG needs address\n", lineno);
+		return 1;
+	    }
+	    unsigned int v;
+	    parse_num(tok2, &v);
+	    INDEX = (unsigned short) (v & 0xFFFF);
+	    continue;
+	}
+	// DB n[,n...]
+	if (ieq(tok1, "DB")) {
+	    char *t;
+	    while ((t = strtok(NULL, " \t,")) != NULL) {
+		unsigned int v;
+		parse_num(t, &v);
+		emit8(v);
+	    }
+	    continue;
+	}
+	// HALT
+	if (ieq(tok1, "HALT")) {
+        printf("%04X  ",INDEX);
+	    emit8(0x76);
+        printf("\tHALT\n");
+	    continue;
+	}
+	// LD A,〜
+	if (ieq(tok1, "LD")) {
+	    char *dst = strtok(NULL, " \t,");
+	    char *src = strtok(NULL, " \t,");
+        
+	    if (!dst || !src) {
+		printf("line %d: bad LD syntax\n", lineno);
+		return 1;
+	    }
 
-        // DB n[,n...]
-        if (ieq(tok1, "DB")) {
-            char *t;
-            while ((t = strtok(NULL, " \t,")) != NULL) {
-                unsigned int v;
-                parse_num(t, &v);
-                emit8(v);
-            }
-            continue;
-        }
-
-        // HALT
-        if (ieq(tok1, "HALT")) {
-            emit8(0x76);
-            continue;
-        }
-
+        printf("%04X  ",INDEX);
+	    // LD A,(HL)
+	    if (ieq(dst, "A") && (ieq(src, "(HL)") || ieq(src, "(hl)"))) {
+        emit8(0x7E);	// LD A,(HL)
+        printf("\tLD A,(HL)\n");
+		continue;
+	    }
+	    // LD (HL),A
+	    if ((ieq(dst, "(HL)") || ieq(dst, "(hl)")) && ieq(src, "A")) {
+		emit8(0x77);	// LD (HL),A
+        printf("\tLD HL,A\n");
+		continue;
+	    }
         // LD A,n
-        if (ieq(tok1, "LD")) {
-            char *dst = strtok(NULL, " \t,");
-            char *src = strtok(NULL, " \t,");
-            if (!dst || !src) { printf("line %d: bad LD syntax\n", lineno); return 1; }
+	    if (ieq(dst, "A")) {
+		unsigned int v;
+		parse_num(src, &v);
+		emit8(0x3E);	
+		emit8(v);
+        printf("\tLD A,%02X\n", v);
+		continue;
+	    }
+        // LD HL,n
+	    if (ieq(dst, "HL") || ieq(dst, "hl")) {
+		unsigned int v;
+		parse_num(src, &v);
+		emit8(0x21);	
+		emit16(v);
+        printf("\tLD HL,%04X\n", v);
+		continue;
+	    }
 
-            if (ieq(dst, "A")) {
-                unsigned int v;
-                parse_num(src, &v);
-                emit8(0x3E);      // LD A,n
-                emit8(v);
-                continue;
-            }
 
-            printf("line %d: unsupported LD form: LD %s,%s\n", lineno, dst, src);
-            return 1;
-        }
 
-        printf("line %d: unknown directive/instruction: %s\n", lineno, tok1);
-        return 1;
+	    printf("line %d: unsupported LD form: LD %s,%s\n", lineno, dst,
+		   src);
+	    return 1;
+	}
+
+	printf("line %d: unknown directive/instruction: %s\n", lineno,
+	       tok1);
+	return 1;
     }
 
     fclose(fp);
@@ -170,14 +215,13 @@ int main(int argc, char *argv[])
     // Output：raw .bin（from 0 to INDEX)
     FILE *out = fopen(outfile, "wb");
     if (!out) {
-        printf("cannot open output: %s\n", outfile);
-        return 1;
+	printf("cannot open output: %s\n", outfile);
+	return 1;
     }
-
     // output to file
     fwrite(ram, 1, INDEX, out);
     fclose(out);
 
-    printf("wrote %s (%u bytes)\n", outfile, (unsigned)INDEX);
+    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
     return 0;
 }
