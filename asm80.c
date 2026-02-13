@@ -167,14 +167,14 @@ int main(int argc, char *argv[])
 
     fclose(fp);
 
-    // 出力：raw .bin（先頭からINDEXまで） ※ORGで飛んだ場合は穴が出るが、まずはそれでOK
+    // Output：raw .bin（from 0 to INDEX)
     FILE *out = fopen(outfile, "wb");
     if (!out) {
         printf("cannot open output: %s\n", outfile);
         return 1;
     }
 
-    // ここは「最大到達アドレス」まで出すのが素朴。今回は INDEX を採用。
+    // output to file
     fwrite(ram, 1, INDEX, out);
     fclose(out);
 
