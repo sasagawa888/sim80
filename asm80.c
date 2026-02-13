@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
         remove_comment(line);
 
         char *p = lskip(line);
-        if (*p == 0) continue; // 空行
+        if (*p == 0) continue; // null line
 
         // tokener
         // e.g. "LD A,1" -> "LD" "A" "1"
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        // LD A,n だけまず実装
+        // LD A,n
         if (ieq(tok1, "LD")) {
             char *dst = strtok(NULL, " \t,");
             char *src = strtok(NULL, " \t,");
