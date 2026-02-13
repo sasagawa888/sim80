@@ -111,8 +111,8 @@ int main(int argc, char *argv[])
         char *p = lskip(line);
         if (*p == 0) continue; // 空行
 
-        // トークン分解（超簡易：空白/カンマ区切り）
-        // 例: "LD A,1" -> "LD" "A" "1"
+        // tokener
+        // e.g. "LD A,1" -> "LD" "A" "1"
         char *tok1 = strtok(p, " \t,");
         if (!tok1) continue;
 
