@@ -10,7 +10,7 @@ all: $(SIM80) $(ASM80)
 $(SIM80): sim80.c
 	$(CC) $(CFLAGS) -o $(SIM80) sim80.c
 
-$(ASM80): asm80.c
+$(ASM80): asm80.c asm80.h
 	$(CC) $(CFLAGS) -o $(ASM80) asm80.c
 
 install: $(SIM80) $(ASM80)
