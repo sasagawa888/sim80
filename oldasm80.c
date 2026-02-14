@@ -1,0 +1,401 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdint.h>
+
+
+#define MAX_SYMS   1024
+#define MAX_LABEL  8
+
+typedef struct {
+    char name[MAX_LABEL + 1];
+    uint16_t addr;
+} Symbol;
+
+static Symbol syms[MAX_SYMS];
+static int sym_count = 0;
+unsigned char ram[0x10000];
+unsigned short INDEX = 0;
+int pass;
+
+static void rstrip(char *s)
+{
+    int n = (int) strlen(s);
+    while (n > 0
+	   && (s[n - 1] == '\n' || s[n - 1] == '\r'
+	       || isspace((unsigned char) s[n - 1])))
+	s[--n] = 0;
+}
+
+static void remove_comment(char *s)
+{
+    // after ';' remove comment 
+    for (int i = 0; s[i]; i++) {
+	if (s[i] == ';') {
+	    s[i] = 0;
+	    break;
+	}
+    }
+}
+
+static char *lskip(char *s)
+{
+    while (*s && isspace((unsigned char) *s))
+	s++;
+    return s;
+}
+
+static int ieq(const char *a, const char *b)
+{
+    while (*a && *b) {
+	if (tolower((unsigned char) *a) != tolower((unsigned char) *b))
+	    return 0;
+	a++;
+	b++;
+    }
+    return *a == 0 && *b == 0;
+}
+
+
+int is_label(const char *token)
+{
+    size_t len = strlen(token);
+    if (len == 0)
+	return 0;
+    return token[len - 1] == ':';
+}
+
+
+int is_symbol(const char *s)
+{
+    if (!s || !*s) return 0;
+
+    unsigned char c0 = (unsigned char)s[0];
+    if (!isalpha(c0) && c0 != '_') return 0;
+
+    for (size_t i = 1; s[i]; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (!isalnum(c) && c != '_') return 0;
+    }
+    return 1;
+}
+
+
+static int parse_num(const char *s, unsigned int *out)
+{
+	// label is not number, return -1
+	if(is_symbol(s))
+		return -1;
+
+    // dec  or hex(0x.. or ..h). e.g. 10, 0x10, 10h
+    char buf[128];
+    size_t n = strlen(s);
+    if (n >= sizeof(buf))
+	return 0;
+    strcpy(buf, s);
+
+    // space skip
+    char *p = buf;
+    while (*p && isspace((unsigned char) *p))
+	p++;
+
+    // hex last h/H e.g. 16h 16H
+    n = strlen(p);
+    if (n > 0 && (p[n - 1] == 'h' || p[n - 1] == 'H')) {
+	p[n - 1] = 0;
+	*out = (unsigned int) strtoul(p, NULL, 16);
+	return 1;
+    }
+    // hex
+    if (n >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+	*out = (unsigned int) strtoul(p, NULL, 16);
+	return 1;
+    }
+    // dec
+    *out = (unsigned int) strtoul(p, NULL, 10);
+    return 1;
+}
+
+static void emit8(unsigned int v)
+{
+    if (pass == 2) {
+	printf("%02X ", v);
+	ram[INDEX++] = (unsigned char) (v & 0xFF);
+    } else
+	INDEX++;
+}
+
+
+static void emit16(unsigned int v)
+{
+    // Z80　0x1234 -> 0x34 0x12
+    emit8(v & 0xFF);
+    emit8((v >> 8) & 0xFF);
+}
+
+
+static void strip_colon(char *tok)
+{
+    size_t n = strlen(tok);
+    if (n > 0 && tok[n - 1] == ':')
+	tok[n - 1] = '\0';
+}
+
+static int sym_find(const char *name)
+{
+    for (int i = 0; i < sym_count; i++) {
+	if (strcmp(syms[i].name, name) == 0)
+	    return i;
+    }
+    return -1;
+}
+
+static int sym_define(char *label_with_optional_colon, uint16_t addr)
+{
+    strip_colon(label_with_optional_colon);
+
+    size_t n = strlen(label_with_optional_colon);
+    if (n == 0 || n > MAX_LABEL)
+	return -1;		// too long or null
+
+    int idx = sym_find(label_with_optional_colon);
+    if (idx >= 0)
+	return -2;		// duplicate
+
+    if (sym_count >= MAX_SYMS)
+	return -3;		// over max
+
+    strcpy(syms[sym_count].name, label_with_optional_colon);
+    syms[sym_count].addr = addr;
+    return sym_count++;
+}
+
+
+void make_bin_name(char *out, size_t outsz, const char *in)
+{
+    const char *dot = strrchr(in, '.');
+    if (dot && dot != in) {
+	size_t base = (size_t) (dot - in);
+	snprintf(out, outsz, "%.*s.bin", (int) base, in);
+    } else {
+	snprintf(out, outsz, "%s.bin", in);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+
+    if (argc < 2) {
+	printf("usage: asm80 file.asm [out.bin]\n");
+	return 1;
+    }
+
+    const char *infile = argv[1];
+    char outfile[256];
+
+    if (argc >= 3) {
+	strncpy(outfile, argv[2], sizeof(outfile));
+	outfile[sizeof(outfile) - 1] = '\0';
+    } else {
+	make_bin_name(outfile, sizeof(outfile), infile);
+    }
+
+    FILE *fp = fopen(infile, "r");
+    if (!fp) {
+	printf("cannot open file: %s\n", infile);
+	return 1;
+    }
+    // Initialize RAM 
+    memset(ram, 0x00, sizeof(ram));
+    INDEX = 0;
+
+    char line[512];
+    int lineno = 0;
+
+    pass = 1;
+
+  retry:
+    if (pass == 1) {
+	pass = 2;
+	fp = fopen(infile, "r");
+	lineno = 0;
+	INDEX = 0;
+    }
+
+    while (fgets(line, sizeof(line), fp)) {
+	lineno++;
+	rstrip(line);
+	remove_comment(line);
+
+	char *p = lskip(line);
+	if (*p == 0)
+	    continue;		// null line
+
+	// tokenizer
+	// e.g. "LD A,1" -> "LD" "A" "1"
+	char *tok1 = strtok(p, " \t,\n");
+	if (!tok1)
+	    continue;
+
+	// label e.g. loop:
+	if (is_label(tok1)) {
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+		printf("%s\n", tok1);
+	    }
+	    if (pass == 1) {
+		strip_colon(tok1);
+		sym_define(tok1, INDEX);
+	    }
+	    continue;
+	}
+	// ORG addr
+	if (ieq(tok1, "ORG")) {
+	    char *tok2 = strtok(NULL, " \t,");
+	    if (!tok2) {
+		printf("line %d: ORG needs address\n", lineno);
+		return 1;
+	    }
+	    unsigned int v;
+	    parse_num(tok2, &v);
+	    INDEX = (unsigned short) (v & 0xFFFF);
+	    continue;
+	}
+	// DB n[,n...]
+	if (ieq(tok1, "DB")) {
+	    char *t;
+	    while ((t = strtok(NULL, " \t,")) != NULL) {
+		unsigned int v;
+		parse_num(t, &v);
+		emit8(v);
+	    }
+	    continue;
+	}
+	// HALT
+	if (ieq(tok1, "HALT")) {
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
+	    emit8(0x76);
+	    if (pass == 2) {
+		printf("\tHALT\n");
+	    }
+	    continue;
+	}
+	// LD A,〜
+	if (ieq(tok1, "LD")) {
+	    char *dst = strtok(NULL, " \t,");
+	    char *src = strtok(NULL, " \t,");
+
+	    if (!dst || !src) {
+		printf("line %d: bad LD syntax\n", lineno);
+		return 1;
+	    }
+
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
+	    // LD A,(HL)
+	    if (ieq(dst, "A") && (ieq(src, "(HL)") || ieq(src, "(hl)"))) {
+		emit8(0x7E);	// LD A,(HL)
+		if (pass == 2) {
+		    printf("\tLD A,(HL)\n");
+		}
+		continue;
+	    }
+
+	    if ((ieq(dst, "(HL)") || ieq(dst, "(hl)")) && ieq(src, "A")) {
+		emit8(0x77);	// LD (HL),A
+		if (pass == 2) {
+		    printf("\tLD HL,A\n");
+		}
+		continue;
+	    }
+	    // LD A,n
+	    if (ieq(dst, "A")) {
+		unsigned int v;
+		parse_num(src, &v);
+		emit8(0x3E);
+		emit8(v);
+		if (pass == 2) {
+		    printf("\tLD A,%02X\n", v);
+		}
+		continue;
+	    }
+	    // LD HL,n
+	    if (ieq(dst, "HL") || ieq(dst, "hl")) {
+		unsigned int v;
+		parse_num(src, &v);
+		emit8(0x21);
+		emit16(v);
+		if (pass == 2) {
+		    printf("\tLD HL,%04X\n", v);
+		}
+		continue;
+	    }
+
+
+
+	    printf("line %d: unsupported LD form: LD %s,%s\n", lineno, dst,
+		   src);
+	    return 1;
+	}
+
+	// JP addr/label
+if (ieq(tok1, "JP")) {
+    char *arg = strtok(NULL, " \t,\n");
+    if (!arg) {
+        printf("line %d: JP needs address/label\n", lineno);
+        return 1;
+    }
+
+    if (pass == 2) printf("%04X  ", INDEX);
+
+    emit8(0xC3);
+
+    unsigned int v;
+    if (parse_num(arg, &v)) {
+        emit16(v);
+        if (pass == 2) printf("\tJP %04X\n", v & 0xFFFF);
+    } else {
+        if (pass == 2) {
+            int idx = sym_find(arg);
+            if (idx < 0) {
+                printf("line %d: undefined label: %s\n", lineno, arg);
+                return 1;
+            }
+            emit16(syms[idx].addr);
+        } else {
+            emit16(0); // pass1はダミーでPC進めるだけ
+        }
+        if (pass == 2) printf("\tJP %s\n", arg);
+    }
+    continue;
+}
+
+
+	
+	printf("line %d: unknown directive/instruction: %s\n", lineno,
+	       tok1);
+	return 1;
+    }
+
+    fclose(fp);
+
+    if (pass == 1)
+	goto retry;
+
+    // Output：raw .bin（from 0 to INDEX)
+    FILE *out = fopen(outfile, "wb");
+    if (!out) {
+	printf("cannot open output: %s\n", outfile);
+	return 1;
+    }
+    // output to file
+    fwrite(ram, 1, INDEX, out);
+    fclose(out);
+
+    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
+    return 0;
+}
