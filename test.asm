@@ -1,3 +1,6 @@
 ; test
-    HALT
-    
+    NOP
+    NOP
+LOOP:
+    JP LOOP
+    HALT ;sdf

@@ -13,6 +13,7 @@ void gettoken(void);
 #define SPACE	' '
 #define NUL		'\0'
 FILE *input_stream;
+FILE *output_stream;
 
 typedef enum toktype { LPAREN, RPAREN, COMMA, INTEGER, HEXNUM, HEXNUM1,
     SYMBOL, LABEL, OTHER, FILEEND
@@ -26,7 +27,7 @@ typedef struct token {
     char buf[BUFSIZE];
 } token;
 
-token stok = { NUL, GO, OTHER, { 0 } };
+token tok = { NUL, GO, OTHER, { 0 } };
 
 #define MAX_SYMS   1024
 #define MAX_LABEL  8
@@ -41,6 +42,7 @@ static int sym_count = 0;
 unsigned char ram[0x10000];
 unsigned short INDEX = 0;
 int pass;
+int lineno;
 jmp_buf buf;
 
 
@@ -73,6 +75,11 @@ static void emit16(unsigned int v)
     emit8((v >> 8) & 0xFF);
 }
 
+void error(char* ope, char* msg)
+{
+    printf("Error: %s %s in %d\n", ope, msg, lineno);
+    longjmp(buf,1);
+}
 
 static int sym_find(const char *name)
 {
@@ -83,34 +90,40 @@ static int sym_find(const char *name)
     return -1;
 }
 
-static int sym_define(char *label_with_optional_colon, uint16_t addr)
+static int sym_define(char *label, uint16_t addr)
 {
 
-    size_t n = strlen(label_with_optional_colon);
+    size_t n = strlen(label);
     if (n == 0 || n > MAX_LABEL)
-	return -1;		// too long or null
+    error("sym_define","too long or null label");
 
-    int idx = sym_find(label_with_optional_colon);
+    int idx = sym_find(label);
     if (idx >= 0)
-	return -2;		// duplicate
+    error("sym_define","duplicate label");
 
     if (sym_count >= MAX_SYMS)
-	return -3;		// over max
+    error("sym_define","too many label");
 
-    strcpy(syms[sym_count].name, label_with_optional_colon);
+    strcpy(syms[sym_count].name, label);
     syms[sym_count].addr = addr;
     return sym_count++;
 }
+
+void gen_code1(char*);
 
 void gen_label(void)
 {
     pass = 1;
     while(1){
     gettoken();
-    if(stok.type == FILEEND){
+    if(tok.type == FILEEND){
         fclose(input_stream);
         return;
     }
+    if(tok.type == LABEL){
+        sym_define(tok.buf,INDEX);
+    }
+    gen_code1(tok.buf);
     }
 }
 
@@ -119,17 +132,81 @@ void gen_op1(void)
 
 }
 
+// LD groupe
+void gen_ld(void)
+{
+
+}
+
+// RET groupe
+void gen_ret(void)
+{
+
+}
+
+// JP groupe
+void gen_jp(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if (pass == 2) printf("%04X  ", INDEX);
+        emit8(0xC3);
+        if (pass == 2) {
+            int idx = sym_find(tok.buf);
+            if (idx < 0) {
+                error("Error undefined label",tok.buf);
+            }
+            emit16(syms[idx].addr);
+        } else {
+            emit16(0); // dummy
+        }
+        if (pass == 2) printf("\tJP %s\n", tok.buf);
+    } else {
+        printf("not label");
+    }
+}
+
+void gen_code1(char* op){
+    if(strcmp(op,"HALT") == 0){
+        if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
+	    emit8(0x76);
+	    if (pass == 2) {
+		printf("\tHALT\n");
+	    }
+    } if(strcmp(op,"NOP") == 0){
+        if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
+	    emit8(0x00);
+	    if (pass == 2) {
+		printf("\tNOP\n");
+	    }
+    } else if(strcmp(op,"JP") == 0){
+        gen_jp();
+    }
+    else if(strcmp(op,"LD") == 0)
+        gen_ld();
+    else if(tok.type == LABEL){
+        if (pass == 2) {
+		printf("%04X  ", INDEX);
+        printf("%s:\n",op);
+	    }
+        return;
+    }
+}
+
 void gen_code(void)
 {
     pass = 2;
     while(1){
     gettoken();
-    if(stok.type == FILEEND){
+    if(tok.type == FILEEND){
         fclose(input_stream);
         return;
     }
-    if(strcmp(stok.buf,"HALT") == 0)
-        printf("catch HALT");
+    gen_code1(tok.buf);
     }
 }
 
@@ -162,7 +239,6 @@ int main(int argc, char *argv[])
     INDEX = 0;
 
     char line[512];
-    int lineno = 0;
 
     int ret = setjmp(buf);
 
@@ -171,16 +247,18 @@ int main(int argc, char *argv[])
         gen_label();
         //pass2
         input_stream = fopen(infile, "r");
+        INDEX = 0;
+        lineno = 0;
 	    gen_code();
 	    
-	    FILE *out = fopen(outfile, "wb");
-	    if (!out) {
+	    output_stream = fopen(outfile, "wb");
+	    if (!output_stream) {
 		printf("cannot open output: %s\n", outfile);
 		return 1;
 	    }
-	    // output to file
-	    fwrite(ram, 1, INDEX, out);
-	    fclose(out);
+	    // output binary to file
+	    fwrite(ram, 1, INDEX, output_stream);
+	    fclose(output_stream);
 
 	    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
 	    return 0;
@@ -311,39 +389,41 @@ void gettoken(void)
     char c;
     int pos;
 
-    if (stok.flag == BACK) {
-	stok.flag = GO;
+    if (tok.flag == BACK) {
+	tok.flag = GO;
 	return;
     }
 
-    if (stok.ch == ')') {
-	stok.type = RPAREN;
-	stok.ch = NUL;
+    if (tok.ch == ')') {
+	tok.type = RPAREN;
+	tok.ch = NUL;
 	return;
     }
 
-    if (stok.ch == '(') {
-	stok.type = LPAREN;
-	stok.ch = NUL;
+    if (tok.ch == '(') {
+	tok.type = LPAREN;
+	tok.ch = NUL;
 	return;
     }
 
-    if (stok.ch == ',') {
-	stok.type = COMMA;
-	stok.ch = NUL;
+    if (tok.ch == ',') {
+	tok.type = COMMA;
+	tok.ch = NUL;
 	return;
     }
 
   skip:
     c = fgetc(input_stream);
-    while ((c == SPACE) || (c == EOL) || (c == TAB))
+    while ((c == SPACE) || (c == EOL) || (c == TAB)){
+    if (c == EOF) lineno++;
 	c = fgetc(input_stream);
+    }
 
     if (c == ';') {
 	while (c != EOL && c != EOF)
 	    c = fgetc(input_stream);
 	if (c == EOF) {
-	    stok.type = FILEEND;
+	    tok.type = FILEEND;
 	    return;
 	}
 	goto skip;
@@ -351,54 +431,56 @@ void gettoken(void)
 
     switch (c) {
     case '(':
-	stok.type = LPAREN;
+	tok.type = LPAREN;
 	break;
     case ')':
-	stok.type = RPAREN;
+	tok.type = RPAREN;
 	break;
     case ',':
-	stok.type = COMMA;
+	tok.type = COMMA;
 	break;
     case EOF:
-	stok.type = FILEEND;
+	tok.type = FILEEND;
 	return;
     default:{
 	    pos = 0;
-	    stok.buf[pos++] = c;
+	    tok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != ',') && (c != '\n'))
-		stok.buf[pos++] = c;
+		   && (c != ')') && (c != ',') && (c != EOL)){
+        if(c == EOL) lineno++;
+		tok.buf[pos++] = c;
+        }
 
-	    stok.buf[pos] = NUL;
-	    stok.ch = c;
-	    if (inttoken(stok.buf)) {
-		stok.type = INTEGER;
+	    tok.buf[pos] = NUL;
+	    tok.ch = c;
+	    if (inttoken(tok.buf)) {
+		tok.type = INTEGER;
 		break;
 	    }
-	    if (hextoken(stok.buf)) {
-		stok.type = HEXNUM;
+	    if (hextoken(tok.buf)) {
+		tok.type = HEXNUM;
 		break;
 	    }
-	    if (hextoken1(stok.buf)) {
-		stok.type = HEXNUM1;
+	    if (hextoken1(tok.buf)) {
+		tok.type = HEXNUM1;
 		break;
 	    }
-	    if (labeltoken(stok.buf)) {
+	    if (labeltoken(tok.buf)) {
 		int i;
-		for (i = 0; stok.buf[i]; i++)
-		    stok.buf[i] = toupper((unsigned char) stok.buf[i]);
-		stok.type = LABEL;
+		for (i = 0; tok.buf[i]; i++)
+		    tok.buf[i] = toupper((unsigned char) tok.buf[i]);
+		tok.type = LABEL;
 		break;
 	    }
-	    if (symboltoken(stok.buf)) {
+	    if (symboltoken(tok.buf)) {
 		int i;
-		for (i = 0; stok.buf[i]; i++)
-		    stok.buf[i] = toupper((unsigned char) stok.buf[i]);
-		stok.type = SYMBOL;
+		for (i = 0; tok.buf[i]; i++)
+		    tok.buf[i] = toupper((unsigned char) tok.buf[i]);
+		tok.type = SYMBOL;
 		break;
 	    }
-	    stok.type = OTHER;
+	    tok.type = OTHER;
 	}
     }
 }
