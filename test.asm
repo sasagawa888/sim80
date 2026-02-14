@@ -4,4 +4,5 @@ ORG 0
 LOOP:
     LD HL,100h
     LD A,(HL)
+    JP LOOP
     HALT

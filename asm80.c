@@ -67,8 +67,27 @@ int is_label(const char *token)
 }
 
 
+int is_symbol(const char *s)
+{
+    if (!s || !*s) return 0;
+
+    unsigned char c0 = (unsigned char)s[0];
+    if (!isalpha(c0) && c0 != '_') return 0;
+
+    for (size_t i = 1; s[i]; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (!isalnum(c) && c != '_') return 0;
+    }
+    return 1;
+}
+
+
 static int parse_num(const char *s, unsigned int *out)
 {
+	// label is not number, return -1
+	if(is_symbol(s))
+		return -1;
+
     // dec  or hex(0x.. or ..h). e.g. 10, 0x10, 10h
     char buf[128];
     size_t n = strlen(s);
@@ -323,6 +342,40 @@ int main(int argc, char *argv[])
 	    return 1;
 	}
 
+	// JP addr/label
+if (ieq(tok1, "JP")) {
+    char *arg = strtok(NULL, " \t,\n");
+    if (!arg) {
+        printf("line %d: JP needs address/label\n", lineno);
+        return 1;
+    }
+
+    if (pass == 2) printf("%04X  ", INDEX);
+
+    emit8(0xC3);
+
+    unsigned int v;
+    if (parse_num(arg, &v)) {
+        emit16(v);
+        if (pass == 2) printf("\tJP %04X\n", v & 0xFFFF);
+    } else {
+        if (pass == 2) {
+            int idx = sym_find(arg);
+            if (idx < 0) {
+                printf("line %d: undefined label: %s\n", lineno, arg);
+                return 1;
+            }
+            emit16(syms[idx].addr);
+        } else {
+            emit16(0); // pass1はダミーでPC進めるだけ
+        }
+        if (pass == 2) printf("\tJP %s\n", arg);
+    }
+    continue;
+}
+
+
+	
 	printf("line %d: unknown directive/instruction: %s\n", lineno,
 	       tok1);
 	return 1;
