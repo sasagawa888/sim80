@@ -222,11 +222,12 @@ int main(int argc, char *argv[])
 	// label e.g. loop:
 	if (is_label(tok1)) {
 	    if (pass == 2) {
-			printf("%04X  ", INDEX);
-			printf("%s\n", tok1);
+		printf("%04X  ", INDEX);
+		printf("%s\n", tok1);
 	    }
 	    if (pass == 1) {
-			strip_colon(tok1), sym_define(tok1, INDEX);
+		strip_colon(tok1);
+		sym_define(tok1, INDEX);
 	    }
 	    continue;
 	}
@@ -254,13 +255,13 @@ int main(int argc, char *argv[])
 	}
 	// HALT
 	if (ieq(tok1, "HALT")) {
-	    if (pass == 2){
-			printf("%04X  ", INDEX);
-		}
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
 	    emit8(0x76);
-	    if (pass == 2){
-			printf("\tHALT\n");
-		}
+	    if (pass == 2) {
+		printf("\tHALT\n");
+	    }
 	    continue;
 	}
 	// LD A,〜
@@ -273,13 +274,13 @@ int main(int argc, char *argv[])
 		return 1;
 	    }
 
-	    if (pass == 2){
-			printf("%04X  ", INDEX);
-		}
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+	    }
 	    // LD A,(HL)
 	    if (ieq(dst, "A") && (ieq(src, "(HL)") || ieq(src, "(hl)"))) {
 		emit8(0x7E);	// LD A,(HL)
-		if (pass == 2){
+		if (pass == 2) {
 		    printf("\tLD A,(HL)\n");
 		}
 		continue;
@@ -287,7 +288,7 @@ int main(int argc, char *argv[])
 
 	    if ((ieq(dst, "(HL)") || ieq(dst, "(hl)")) && ieq(src, "A")) {
 		emit8(0x77);	// LD (HL),A
-		if (pass == 2){
+		if (pass == 2) {
 		    printf("\tLD HL,A\n");
 		}
 		continue;
@@ -298,7 +299,7 @@ int main(int argc, char *argv[])
 		parse_num(src, &v);
 		emit8(0x3E);
 		emit8(v);
-		if (pass == 2){
+		if (pass == 2) {
 		    printf("\tLD A,%02X\n", v);
 		}
 		continue;
@@ -309,7 +310,7 @@ int main(int argc, char *argv[])
 		parse_num(src, &v);
 		emit8(0x21);
 		emit16(v);
-		if (pass == 2){
+		if (pass == 2) {
 		    printf("\tLD HL,%04X\n", v);
 		}
 		continue;
