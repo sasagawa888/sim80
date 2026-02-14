@@ -23,7 +23,8 @@ typedef struct token {
     char buf[BUFSIZE];
 } token;
 
-token stok = { GO, OTHER };
+token stok = { NUL, GO, OTHER, {0} };
+
 
 int main(int argc, char *argv[])
 {
@@ -200,7 +201,7 @@ void gettoken(void)
 	    stok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != '`') && (c != ','))
+		   && (c != ')') && (c != ','))
 		stok.buf[pos++] = c;
 
 	    stok.buf[pos] = NUL;
