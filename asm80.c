@@ -17,6 +17,7 @@ static Symbol syms[MAX_SYMS];
 static int sym_count = 0;
 unsigned char ram[0x10000];
 unsigned short INDEX = 0;
+int pass;
 
 static void rstrip(char *s)
 {
@@ -99,8 +100,11 @@ static int parse_num(const char *s, unsigned int *out)
 
 static void emit8(unsigned int v)
 {
-    printf("%02X ", v);
-    ram[INDEX++] = (unsigned char) (v & 0xFF);
+    if (pass == 2) {
+	printf("%02X ", v);
+	ram[INDEX++] = (unsigned char) (v & 0xFF);
+    } else
+	INDEX++;
 }
 
 
@@ -162,7 +166,6 @@ void make_bin_name(char *out, size_t outsz, const char *in)
 
 int main(int argc, char *argv[])
 {
-    int pass;
 
     if (argc < 2) {
 	printf("usage: asm80 file.asm [out.bin]\n");
@@ -197,6 +200,8 @@ int main(int argc, char *argv[])
     if (pass == 1) {
 	pass = 2;
 	fp = fopen(infile, "r");
+	lineno = 0;
+	INDEX = 0;
     }
 
     while (fgets(line, sizeof(line), fp)) {
@@ -214,15 +219,14 @@ int main(int argc, char *argv[])
 	if (!tok1)
 	    continue;
 
-	//printf("%s",tok1);
 	// label e.g. loop:
 	if (is_label(tok1)) {
 	    if (pass == 2) {
-		printf("%04X  ", INDEX);
-		printf("%s\n", tok1);
+			printf("%04X  ", INDEX);
+			printf("%s\n", tok1);
 	    }
 	    if (pass == 1) {
-		strip_colon(tok1), sym_define(tok1, INDEX);
+			strip_colon(tok1), sym_define(tok1, INDEX);
 	    }
 	    continue;
 	}
@@ -250,12 +254,13 @@ int main(int argc, char *argv[])
 	}
 	// HALT
 	if (ieq(tok1, "HALT")) {
-	    if (pass == 2)
-		printf("%04X  ", INDEX);
+	    if (pass == 2){
+			printf("%04X  ", INDEX);
+		}
 	    emit8(0x76);
-	    if (pass == 2)
-		printf("\tHALT\n");
-
+	    if (pass == 2){
+			printf("\tHALT\n");
+		}
 	    continue;
 	}
 	// LD A,〜
@@ -268,20 +273,23 @@ int main(int argc, char *argv[])
 		return 1;
 	    }
 
-	    if (pass == 2)
-		printf("%04X  ", INDEX);
+	    if (pass == 2){
+			printf("%04X  ", INDEX);
+		}
 	    // LD A,(HL)
 	    if (ieq(dst, "A") && (ieq(src, "(HL)") || ieq(src, "(hl)"))) {
 		emit8(0x7E);	// LD A,(HL)
-		if (pass == 2)
+		if (pass == 2){
 		    printf("\tLD A,(HL)\n");
+		}
 		continue;
 	    }
 
 	    if ((ieq(dst, "(HL)") || ieq(dst, "(hl)")) && ieq(src, "A")) {
 		emit8(0x77);	// LD (HL),A
-		if (pass == 2)
+		if (pass == 2){
 		    printf("\tLD HL,A\n");
+		}
 		continue;
 	    }
 	    // LD A,n
@@ -290,8 +298,9 @@ int main(int argc, char *argv[])
 		parse_num(src, &v);
 		emit8(0x3E);
 		emit8(v);
-		if (pass == 2)
+		if (pass == 2){
 		    printf("\tLD A,%02X\n", v);
+		}
 		continue;
 	    }
 	    // LD HL,n
@@ -300,8 +309,9 @@ int main(int argc, char *argv[])
 		parse_num(src, &v);
 		emit8(0x21);
 		emit16(v);
-		if (pass == 2)
+		if (pass == 2){
 		    printf("\tLD HL,%04X\n", v);
+		}
 		continue;
 	    }
 
