@@ -37,7 +37,7 @@ typedef struct {
     uint16_t addr;
 } Symbol;
 
-static Symbol syms[MAX_SYMS];
+static Symbol labels[MAX_SYMS];
 static int sym_count = 0;
 unsigned char ram[0x10000];
 unsigned short INDEX = 0;
@@ -84,7 +84,7 @@ void error(char* ope, char* msg)
 static int sym_find(const char *name)
 {
     for (int i = 0; i < sym_count; i++) {
-	if (strcmp(syms[i].name, name) == 0)
+	if (strcmp(labels[i].name, name) == 0)
 	    return i;
     }
     return -1;
@@ -104,8 +104,8 @@ static int sym_define(char *label, uint16_t addr)
     if (sym_count >= MAX_SYMS)
     error("sym_define","too many label");
 
-    strcpy(syms[sym_count].name, label);
-    syms[sym_count].addr = addr;
+    strcpy(labels[sym_count].name, label);
+    labels[sym_count].addr = addr;
     return sym_count++;
 }
 
@@ -156,7 +156,7 @@ void gen_jp(void)
             if (idx < 0) {
                 error("Error undefined label",tok.buf);
             }
-            emit16(syms[idx].addr);
+            emit16(labels[idx].addr);
         } else {
             emit16(0); // dummy
         }
@@ -237,8 +237,6 @@ int main(int argc, char *argv[])
     // Initialize RAM 
     memset(ram, 0x00, sizeof(ram));
     INDEX = 0;
-
-    char line[512];
 
     int ret = setjmp(buf);
 
