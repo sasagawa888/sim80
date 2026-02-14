@@ -166,23 +166,19 @@ void gen_jp(void)
     }
 }
 
+void gen_code2(unsigned int v,char* op){
+    if (pass == 2) 
+		printf("%04X  ", INDEX);
+    emit8(v);
+	if (pass == 2) 
+		printf("\t%s\n",op);
+}
+
 void gen_code1(char* op){
     if(strcmp(op,"HALT") == 0){
-        if (pass == 2) {
-		printf("%04X  ", INDEX);
-	    }
-	    emit8(0x76);
-	    if (pass == 2) {
-		printf("\tHALT\n");
-	    }
-    } if(strcmp(op,"NOP") == 0){
-        if (pass == 2) {
-		printf("%04X  ", INDEX);
-	    }
-	    emit8(0x00);
-	    if (pass == 2) {
-		printf("\tNOP\n");
-	    }
+        gen_code2(0x76,op);
+    }else if(strcmp(op,"NOP") == 0){
+        gen_code2(0x00,op);
     } else if(strcmp(op,"JP") == 0){
         gen_jp();
     }
