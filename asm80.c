@@ -2,7 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
+
+#define MAX_SYMS   1024
+#define MAX_LABEL  8
+
+typedef struct {
+    char name[MAX_LABEL + 1];
+    uint16_t addr;
+} Symbol;
+
+static Symbol syms[MAX_SYMS];
+static int sym_count = 0;
 unsigned char ram[0x10000];
 unsigned short INDEX = 0;
 
@@ -44,6 +56,16 @@ static int ieq(const char *a, const char *b)
     return *a == 0 && *b == 0;
 }
 
+
+int is_label(const char *token)
+{
+    size_t len = strlen(token);
+    if (len == 0)
+	return 0;
+    return token[len - 1] == ':';
+}
+
+
 static int parse_num(const char *s, unsigned int *out)
 {
     // dec  or hex(0x.. or ..h). e.g. 10, 0x10, 10h
@@ -77,7 +99,7 @@ static int parse_num(const char *s, unsigned int *out)
 
 static void emit8(unsigned int v)
 {
-    printf("%02X ",v);
+    printf("%02X ", v);
     ram[INDEX++] = (unsigned char) (v & 0xFF);
 }
 
@@ -90,15 +112,72 @@ static void emit16(unsigned int v)
 }
 
 
+static void strip_colon(char *tok)
+{
+    size_t n = strlen(tok);
+    if (n > 0 && tok[n - 1] == ':')
+	tok[n - 1] = '\0';
+}
+
+static int sym_find(const char *name)
+{
+    for (int i = 0; i < sym_count; i++) {
+	if (strcmp(syms[i].name, name) == 0)
+	    return i;
+    }
+    return -1;
+}
+
+static int sym_define(char *label_with_optional_colon, uint16_t addr)
+{
+    strip_colon(label_with_optional_colon);
+
+    size_t n = strlen(label_with_optional_colon);
+    if (n == 0 || n > MAX_LABEL)
+	return -1;		// too long or null
+
+    int idx = sym_find(label_with_optional_colon);
+    if (idx >= 0)
+	return -2;		// duplicate
+
+    if (sym_count >= MAX_SYMS)
+	return -3;		// over max
+
+    strcpy(syms[sym_count].name, label_with_optional_colon);
+    syms[sym_count].addr = addr;
+    return sym_count++;
+}
+
+
+void make_bin_name(char *out, size_t outsz, const char *in)
+{
+    const char *dot = strrchr(in, '.');
+    if (dot && dot != in) {
+	size_t base = (size_t) (dot - in);
+	snprintf(out, outsz, "%.*s.bin", (int) base, in);
+    } else {
+	snprintf(out, outsz, "%s.bin", in);
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    int pass;
+
     if (argc < 2) {
 	printf("usage: asm80 file.asm [out.bin]\n");
 	return 1;
     }
 
     const char *infile = argv[1];
-    const char *outfile = (argc >= 3) ? argv[2] : "out.bin";
+    char outfile[256];
+
+    if (argc >= 3) {
+	strncpy(outfile, argv[2], sizeof(outfile));
+	outfile[sizeof(outfile) - 1] = '\0';
+    } else {
+	make_bin_name(outfile, sizeof(outfile), infile);
+    }
 
     FILE *fp = fopen(infile, "r");
     if (!fp) {
@@ -112,6 +191,14 @@ int main(int argc, char *argv[])
     char line[512];
     int lineno = 0;
 
+    pass = 1;
+
+  retry:
+    if (pass == 1) {
+	pass = 2;
+	fp = fopen(infile, "r");
+    }
+
     while (fgets(line, sizeof(line), fp)) {
 	lineno++;
 	rstrip(line);
@@ -121,12 +208,24 @@ int main(int argc, char *argv[])
 	if (*p == 0)
 	    continue;		// null line
 
-	// tokener
+	// tokenizer
 	// e.g. "LD A,1" -> "LD" "A" "1"
-	char *tok1 = strtok(p, " \t,");
+	char *tok1 = strtok(p, " \t,\n");
 	if (!tok1)
 	    continue;
 
+	//printf("%s",tok1);
+	// label e.g. loop:
+	if (is_label(tok1)) {
+	    if (pass == 2) {
+		printf("%04X  ", INDEX);
+		printf("%s\n", tok1);
+	    }
+	    if (pass == 1) {
+		strip_colon(tok1), sym_define(tok1, INDEX);
+	    }
+	    continue;
+	}
 	// ORG addr
 	if (ieq(tok1, "ORG")) {
 	    char *tok2 = strtok(NULL, " \t,");
@@ -151,50 +250,58 @@ int main(int argc, char *argv[])
 	}
 	// HALT
 	if (ieq(tok1, "HALT")) {
-        printf("%04X  ",INDEX);
+	    if (pass == 2)
+		printf("%04X  ", INDEX);
 	    emit8(0x76);
-        printf("\tHALT\n");
+	    if (pass == 2)
+		printf("\tHALT\n");
+
 	    continue;
 	}
 	// LD A,〜
 	if (ieq(tok1, "LD")) {
 	    char *dst = strtok(NULL, " \t,");
 	    char *src = strtok(NULL, " \t,");
-        
+
 	    if (!dst || !src) {
 		printf("line %d: bad LD syntax\n", lineno);
 		return 1;
 	    }
 
-        printf("%04X  ",INDEX);
+	    if (pass == 2)
+		printf("%04X  ", INDEX);
 	    // LD A,(HL)
 	    if (ieq(dst, "A") && (ieq(src, "(HL)") || ieq(src, "(hl)"))) {
-        emit8(0x7E);	// LD A,(HL)
-        printf("\tLD A,(HL)\n");
+		emit8(0x7E);	// LD A,(HL)
+		if (pass == 2)
+		    printf("\tLD A,(HL)\n");
 		continue;
 	    }
-	    // LD (HL),A
+
 	    if ((ieq(dst, "(HL)") || ieq(dst, "(hl)")) && ieq(src, "A")) {
 		emit8(0x77);	// LD (HL),A
-        printf("\tLD HL,A\n");
+		if (pass == 2)
+		    printf("\tLD HL,A\n");
 		continue;
 	    }
-        // LD A,n
+	    // LD A,n
 	    if (ieq(dst, "A")) {
 		unsigned int v;
 		parse_num(src, &v);
-		emit8(0x3E);	
+		emit8(0x3E);
 		emit8(v);
-        printf("\tLD A,%02X\n", v);
+		if (pass == 2)
+		    printf("\tLD A,%02X\n", v);
 		continue;
 	    }
-        // LD HL,n
+	    // LD HL,n
 	    if (ieq(dst, "HL") || ieq(dst, "hl")) {
 		unsigned int v;
 		parse_num(src, &v);
-		emit8(0x21);	
+		emit8(0x21);
 		emit16(v);
-        printf("\tLD HL,%04X\n", v);
+		if (pass == 2)
+		    printf("\tLD HL,%04X\n", v);
 		continue;
 	    }
 
@@ -211,6 +318,9 @@ int main(int argc, char *argv[])
     }
 
     fclose(fp);
+
+    if (pass == 1)
+	goto retry;
 
     // Output：raw .bin（from 0 to INDEX)
     FILE *out = fopen(outfile, "wb");
