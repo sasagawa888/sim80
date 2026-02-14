@@ -5,6 +5,8 @@
 #include <setjmp.h>
 #include <stdint.h>
 
+void gettoken(void);
+
 #define BUFSIZE 256
 #define EOL		'\n'
 #define TAB		'\t'
@@ -13,7 +15,8 @@
 FILE *input_stream;
 
 typedef enum toktype { LPAREN, RPAREN, COMMA, INTEGER, HEXNUM, HEXNUM1,
-	SYMBOL, LABEL, OTHER, FILEEND } toktype;
+    SYMBOL, LABEL, OTHER, FILEEND
+} toktype;
 typedef enum backtrack { GO, BACK } backtrack;
 
 typedef struct token {
@@ -23,7 +26,7 @@ typedef struct token {
     char buf[BUFSIZE];
 } token;
 
-token stok = { NUL, GO, OTHER, {0} };
+token stok = { NUL, GO, OTHER, { 0 } };
 
 #define MAX_SYMS   1024
 #define MAX_LABEL  8
@@ -82,7 +85,6 @@ static int sym_find(const char *name)
 
 static int sym_define(char *label_with_optional_colon, uint16_t addr)
 {
-    strip_colon(label_with_optional_colon);
 
     size_t n = strlen(label_with_optional_colon);
     if (n == 0 || n > MAX_LABEL)
@@ -100,18 +102,42 @@ static int sym_define(char *label_with_optional_colon, uint16_t addr)
     return sym_count++;
 }
 
-void gen_label(void){
+void gen_label(void)
+{
     pass = 1;
+    while(1){
+    gettoken();
+    if(stok.type == FILEEND){
+        fclose(input_stream);
+        return;
+    }
+    }
 }
 
-void gen_code(void){
-    pass = 2;
+void gen_op1(void)
+{
+
 }
+
+void gen_code(void)
+{
+    pass = 2;
+    while(1){
+    gettoken();
+    if(stok.type == FILEEND){
+        fclose(input_stream);
+        return;
+    }
+    if(strcmp(stok.buf,"HALT") == 0)
+        printf("catch HALT");
+    }
+}
+
 
 
 int main(int argc, char *argv[])
 {
-     if (argc < 2) {
+    if (argc < 2) {
 	printf("usage: asm80 file.asm [out.bin]\n");
 	return 1;
     }
@@ -139,30 +165,32 @@ int main(int argc, char *argv[])
     int lineno = 0;
 
     int ret = setjmp(buf);
-    
-    if(ret == 0){
+
+    if (ret == 0) {
+	    //pass1
         gen_label();
-        gen_code();
-        } else if(ret == 1){
-        fclose(input_stream);
-        return 1;
-    }
+        //pass2
+        input_stream = fopen(infile, "r");
+	    gen_code();
+	    
+	    FILE *out = fopen(outfile, "wb");
+	    if (!out) {
+		printf("cannot open output: %s\n", outfile);
+		return 1;
+	    }
+	    // output to file
+	    fwrite(ram, 1, INDEX, out);
+	    fclose(out);
 
-
-    fclose(input_stream);
-
-    // Output：raw .bin（from 0 to INDEX)
-    FILE *out = fopen(outfile, "wb");
-    if (!out) {
-	printf("cannot open output: %s\n", outfile);
+	    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
+	    return 0;
+    } else if (ret == 2) {
+	//error
+	fclose(input_stream);
 	return 1;
     }
-    // output to file
-    fwrite(ram, 1, INDEX, out);
-    fclose(out);
 
-    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
-    return 0;
+
 
 }
 
@@ -189,10 +217,10 @@ int hextoken(char buf[])
     char c;
 
     if (buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X')) {
-	if(buf[2] == NUL) // 0x is not hexnum
-        return (0);
+	if (buf[2] == NUL)	// 0x is not hexnum
+	    return (0);
 
-    i = 2;
+	i = 2;
 	while ((c = buf[i]) != NUL) {
 	    if (isxdigit(c))
 		i++;
@@ -339,7 +367,7 @@ void gettoken(void)
 	    stok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != ','))
+		   && (c != ')') && (c != ',') && (c != '\n'))
 		stok.buf[pos++] = c;
 
 	    stok.buf[pos] = NUL;

@@ -3,7 +3,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <setjmp.h>
-#include <float.h>
+#include <stdint.h>
+
+void gettoken(void);
 
 #define BUFSIZE 256
 #define EOL		'\n'
@@ -12,21 +14,167 @@
 #define NUL		'\0'
 FILE *input_stream;
 
-typedef enum toktype {LPAREN,RPAREN,COMMA,INTEGER,HEXNUM,HEXNUM1,SYMBOL,LABEL,OTHER,FILEEND} toktype;
-typedef enum backtrack {GO,BACK} backtrack;
+typedef enum toktype { LPAREN, RPAREN, COMMA, INTEGER, HEXNUM, HEXNUM1,
+	SYMBOL, LABEL, OTHER, FILEEND } toktype;
+typedef enum backtrack { GO, BACK } backtrack;
 
 typedef struct token {
-	char ch;
+    char ch;
     backtrack flag;
-	toktype type;
+    toktype type;
     char buf[BUFSIZE];
 } token;
 
-token stok = { GO, OTHER };
+token stok = { NUL, GO, OTHER, {0} };
+
+#define MAX_SYMS   1024
+#define MAX_LABEL  8
+
+typedef struct {
+    char name[MAX_LABEL + 1];
+    uint16_t addr;
+} Symbol;
+
+static Symbol syms[MAX_SYMS];
+static int sym_count = 0;
+unsigned char ram[0x10000];
+unsigned short INDEX = 0;
+int pass;
+jmp_buf buf;
+
+
+void make_bin_name(char *out, size_t outsz, const char *in)
+{
+    const char *dot = strrchr(in, '.');
+    if (dot && dot != in) {
+	size_t base = (size_t) (dot - in);
+	snprintf(out, outsz, "%.*s.bin", (int) base, in);
+    } else {
+	snprintf(out, outsz, "%s.bin", in);
+    }
+}
+
+
+static void emit8(unsigned int v)
+{
+    if (pass == 2) {
+	printf("%02X ", v);
+	ram[INDEX++] = (unsigned char) (v & 0xFF);
+    } else
+	INDEX++;
+}
+
+
+static void emit16(unsigned int v)
+{
+    // Z80　0x1234 -> 0x34 0x12
+    emit8(v & 0xFF);
+    emit8((v >> 8) & 0xFF);
+}
+
+
+static int sym_find(const char *name)
+{
+    for (int i = 0; i < sym_count; i++) {
+	if (strcmp(syms[i].name, name) == 0)
+	    return i;
+    }
+    return -1;
+}
+
+static int sym_define(char *label_with_optional_colon, uint16_t addr)
+{
+
+    size_t n = strlen(label_with_optional_colon);
+    if (n == 0 || n > MAX_LABEL)
+	return -1;		// too long or null
+
+    int idx = sym_find(label_with_optional_colon);
+    if (idx >= 0)
+	return -2;		// duplicate
+
+    if (sym_count >= MAX_SYMS)
+	return -3;		// over max
+
+    strcpy(syms[sym_count].name, label_with_optional_colon);
+    syms[sym_count].addr = addr;
+    return sym_count++;
+}
+
+void gen_label(void){
+    pass = 1;
+}
+
+void gen_op1(void){
+    gettoken();
+
+}
+
+void gen_code(void){
+    pass = 2;
+}
+
+
 
 int main(int argc, char *argv[])
 {
+     if (argc < 2) {
+	printf("usage: asm80 file.asm [out.bin]\n");
+	return 1;
+    }
+
+    const char *infile = argv[1];
+    char outfile[256];
+
+    if (argc >= 3) {
+	strncpy(outfile, argv[2], sizeof(outfile));
+	outfile[sizeof(outfile) - 1] = '\0';
+    } else {
+	make_bin_name(outfile, sizeof(outfile), infile);
+    }
+
+    input_stream = fopen(infile, "r");
+    if (!input_stream) {
+	printf("cannot open file: %s\n", infile);
+	return 1;
+    }
+    // Initialize RAM 
+    memset(ram, 0x00, sizeof(ram));
+    INDEX = 0;
+
+    char line[512];
+    int lineno = 0;
+
+    int ret = setjmp(buf);
+    
+    if(ret == 0){
+        while(1){
+        gen_label();
+        gen_code();
+        if(stok.type = FILEEND)
+            fclose(input_stream);
+
+    // Output：raw .bin（from 0 to INDEX)
+    FILE *out = fopen(outfile, "wb");
+    if (!out) {
+	printf("cannot open output: %s\n", outfile);
+	return 1;
+    }
+    // output to file
+    fwrite(ram, 1, INDEX, out);
+    fclose(out);
+
+    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
     return 0;
+        } 
+        } else if(ret == 2){
+        //error
+        fclose(input_stream);
+        return 1;
+    }
+
+    
+
 }
 
 
@@ -35,12 +183,12 @@ int inttoken(char buf[])
     int i;
     char c;
 
-	i = 0;			// {1234...}
-	while ((c = buf[i]) != NUL){
-	    if (isdigit(c))
-		i++;
-	    else
-		return (0);
+    i = 0;			// {1234...}
+    while ((c = buf[i]) != NUL) {
+	if (isdigit(c))
+	    i++;
+	else
+	    return (0);
     }
     return (1);
 }
@@ -51,35 +199,38 @@ int hextoken(char buf[])
     int i;
     char c;
 
-    if (buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X')){
+    if (buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X')) {
+	if(buf[2] == NUL) // 0x is not hexnum
+        return (0);
+
     i = 2;
-    while ((c = buf[i]) != NUL){
-	if (isxdigit(c))
-	    i++;
-	else
-	    return (0);
+	while ((c = buf[i]) != NUL) {
+	    if (isxdigit(c))
+		i++;
+	    else
+		return (0);
+	}
+	return (1);
     }
-    return(1);
-    }
-	return (0);
+    return (0);
 }
 
 int hextoken1(char buf[])
 {
-    int i,len;
+    int i, len;
 
     len = strlen(buf);
-    if(buf[len-1] == 'H' || buf[len-1] == 'h'){
-        i = len-2;
-        while(i>=0){
-            if(!isxdigit(buf[i]))
-                return(0);
-        i--;
-        }
-        buf[len-1] = NUL;
-        return(1);
+    if (buf[len - 1] == 'H' || buf[len - 1] == 'h') {
+	i = len - 2;
+	while (i >= 0) {
+	    if (!isxdigit(buf[i]))
+		return (0);
+	    i--;
+	}
+	buf[len - 1] = NUL;
+	return (1);
     }
-    return(0);
+    return (0);
 }
 
 int issymch(char c)
@@ -121,17 +272,20 @@ int symboltoken(char buf[])
 int labeltoken(char buf[])
 {
     int len = strlen(buf);
-    if (len <= 1) return 0;
+    if (len <= 1)
+	return 0;
 
-    if (buf[len-1] != ':') return 0;
+    if (buf[len - 1] != ':')
+	return 0;
 
-    buf[len-1] = NUL;     
-    if (!symboltoken(buf)) return 0;
+    buf[len - 1] = NUL;
+    if (!symboltoken(buf))
+	return 0;
 
     // if (strlen(buf) > 8) error(...);
 
     return 1;
-    
+
 }
 
 
@@ -158,21 +312,24 @@ void gettoken(void)
     }
 
     if (stok.ch == ',') {
-    stok.type = COMMA;
-    stok.ch = NUL;
-    return;
-}
+	stok.type = COMMA;
+	stok.ch = NUL;
+	return;
+    }
 
-    skip:
+  skip:
     c = fgetc(input_stream);
     while ((c == SPACE) || (c == EOL) || (c == TAB))
 	c = fgetc(input_stream);
 
-    if(c == ';'){
-         while (c != EOL && c != EOF)
-        c = fgetc(input_stream);
-        if (c == EOF) { stok.type = FILEEND; return; }
-        goto skip;
+    if (c == ';') {
+	while (c != EOL && c != EOF)
+	    c = fgetc(input_stream);
+	if (c == EOF) {
+	    stok.type = FILEEND;
+	    return;
+	}
+	goto skip;
     }
 
     switch (c) {
@@ -191,9 +348,9 @@ void gettoken(void)
     default:{
 	    pos = 0;
 	    stok.buf[pos++] = c;
-	    while (((c = fgetc(input_stream)) != EOL) && (pos < BUFSIZE-1) &&
-		   (c != SPACE) && (c != '(') && (c != ')') &&
-		   (c != '`') && (c != ','))
+	    while (((c = fgetc(input_stream)) != EOL)
+		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
+		   && (c != ')') && (c != ','))
 		stok.buf[pos++] = c;
 
 	    stok.buf[pos] = NUL;
@@ -202,25 +359,25 @@ void gettoken(void)
 		stok.type = INTEGER;
 		break;
 	    }
-        if (hextoken(stok.buf)) {
+	    if (hextoken(stok.buf)) {
 		stok.type = HEXNUM;
 		break;
 	    }
-         if (hextoken1(stok.buf)) {
+	    if (hextoken1(stok.buf)) {
 		stok.type = HEXNUM1;
 		break;
 	    }
-        if (labeltoken(stok.buf)) {
-        int i;
-        for (i=0; stok.buf[i]; i++)
-        stok.buf[i] = toupper((unsigned char)stok.buf[i]);
+	    if (labeltoken(stok.buf)) {
+		int i;
+		for (i = 0; stok.buf[i]; i++)
+		    stok.buf[i] = toupper((unsigned char) stok.buf[i]);
 		stok.type = LABEL;
 		break;
 	    }
 	    if (symboltoken(stok.buf)) {
-        int i;
-        for (i=0; stok.buf[i]; i++)
-        stok.buf[i] = toupper((unsigned char)stok.buf[i]);
+		int i;
+		for (i = 0; stok.buf[i]; i++)
+		    stok.buf[i] = toupper((unsigned char) stok.buf[i]);
 		stok.type = SYMBOL;
 		break;
 	    }
