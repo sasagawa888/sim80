@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <setjmp.h>
-#include <float.h>
+#include <stdint.h>
 
 #define BUFSIZE 256
 #define EOL		'\n'
@@ -25,10 +25,145 @@ typedef struct token {
 
 token stok = { NUL, GO, OTHER, {0} };
 
+#define MAX_SYMS   1024
+#define MAX_LABEL  8
+
+typedef struct {
+    char name[MAX_LABEL + 1];
+    uint16_t addr;
+} Symbol;
+
+static Symbol syms[MAX_SYMS];
+static int sym_count = 0;
+unsigned char ram[0x10000];
+unsigned short INDEX = 0;
+int pass;
+jmp_buf buf;
+
+
+void make_bin_name(char *out, size_t outsz, const char *in)
+{
+    const char *dot = strrchr(in, '.');
+    if (dot && dot != in) {
+	size_t base = (size_t) (dot - in);
+	snprintf(out, outsz, "%.*s.bin", (int) base, in);
+    } else {
+	snprintf(out, outsz, "%s.bin", in);
+    }
+}
+
+
+static void emit8(unsigned int v)
+{
+    if (pass == 2) {
+	printf("%02X ", v);
+	ram[INDEX++] = (unsigned char) (v & 0xFF);
+    } else
+	INDEX++;
+}
+
+
+static void emit16(unsigned int v)
+{
+    // Z80　0x1234 -> 0x34 0x12
+    emit8(v & 0xFF);
+    emit8((v >> 8) & 0xFF);
+}
+
+
+static int sym_find(const char *name)
+{
+    for (int i = 0; i < sym_count; i++) {
+	if (strcmp(syms[i].name, name) == 0)
+	    return i;
+    }
+    return -1;
+}
+
+static int sym_define(char *label_with_optional_colon, uint16_t addr)
+{
+    strip_colon(label_with_optional_colon);
+
+    size_t n = strlen(label_with_optional_colon);
+    if (n == 0 || n > MAX_LABEL)
+	return -1;		// too long or null
+
+    int idx = sym_find(label_with_optional_colon);
+    if (idx >= 0)
+	return -2;		// duplicate
+
+    if (sym_count >= MAX_SYMS)
+	return -3;		// over max
+
+    strcpy(syms[sym_count].name, label_with_optional_colon);
+    syms[sym_count].addr = addr;
+    return sym_count++;
+}
+
+void gen_label(void){
+    pass = 1;
+}
+
+void gen_code(void){
+    pass = 2;
+}
+
 
 int main(int argc, char *argv[])
 {
+     if (argc < 2) {
+	printf("usage: asm80 file.asm [out.bin]\n");
+	return 1;
+    }
+
+    const char *infile = argv[1];
+    char outfile[256];
+
+    if (argc >= 3) {
+	strncpy(outfile, argv[2], sizeof(outfile));
+	outfile[sizeof(outfile) - 1] = '\0';
+    } else {
+	make_bin_name(outfile, sizeof(outfile), infile);
+    }
+
+    input_stream = fopen(infile, "r");
+    if (!input_stream) {
+	printf("cannot open file: %s\n", infile);
+	return 1;
+    }
+    // Initialize RAM 
+    memset(ram, 0x00, sizeof(ram));
+    INDEX = 0;
+
+    char line[512];
+    int lineno = 0;
+
+    int ret = setjmp(buf);
+    
+    if(ret == 0){
+        gen_label();
+        gen_code();
+        } else if(ret == 1){
+        fclose(input_stream);
+        return 1;
+    }
+
+
+    fclose(input_stream);
+
+    // Output：raw .bin（from 0 to INDEX)
+    FILE *out = fopen(outfile, "wb");
+    if (!out) {
+	printf("cannot open output: %s\n", outfile);
+	return 1;
+    }
+    // output to file
+    fwrite(ram, 1, INDEX, out);
+    fclose(out);
+
+    printf("wrote %s (%u bytes)\n", outfile, (unsigned) INDEX);
     return 0;
+
 }
 
 
@@ -54,7 +189,10 @@ int hextoken(char buf[])
     char c;
 
     if (buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X')) {
-	i = 2;
+	if(buf[2] == NUL) // 0x is not hexnum
+        return (0);
+
+    i = 2;
 	while ((c = buf[i]) != NUL) {
 	    if (isxdigit(c))
 		i++;
