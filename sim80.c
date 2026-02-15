@@ -50,11 +50,11 @@ int main(int argc, char *argv[])
         printf("A=%X BC=%X DE=%X HL=%X PC=%X SP=%X\n",A,BC,DE,HL,PC,SP);
 	    return 0;
     case 0xc2:      //JP NZ nn
-        uint8_t lo = ram[PC++];
+        {uint8_t lo = ram[PC++];
         uint8_t hi = ram[PC++];
         uint16_t nn = (uint16_t)lo | ((uint16_t)hi << 8);
         if (Z == 0) PC = nn;
-        break;
+        break;}
     case 0xEF:      //RST 0x00
         printf("%02X",A);
         break;
