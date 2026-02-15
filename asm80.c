@@ -86,6 +86,8 @@ static int symboltoken(char buf[]);
 static void gen_ld(void);
 static void gen_ret(void);
 static void gen_jp(void);
+static void gen_inc(void);
+static void gen_dec(void);
 static void gen_code1(char* op);
 static void gen_op1(unsigned int v,char* op);
 static void gettoken(void);
@@ -412,6 +414,10 @@ static void gen_code1(char *op)
 	gen_jp();
     } else if (eqv(op, "LD")){
 	gen_ld();
+    } else if (eqv(op, "INC")){
+	gen_inc();
+    } else if (eqv(op, "DEC")){
+	gen_dec();
     }
     else if (tok.type == LABEL) {
 	if (pass == 2) {
@@ -553,6 +559,53 @@ static void gen_jp(void)
 	    printf("\tJP %s\n", tok.buf);
     } else {
 	printf("not label");
+    }
+}
+
+// DEC groupe
+static void gen_dec(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x3d,"DEC A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x05,"DEC B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x0d,"DEC C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x15,"DEC D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x1d,"DEC E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x25,"DEC H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x2d,"DEC L");
+        } 
+    }
+}
+
+
+// INC groupe
+static void gen_inc(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x3c,"INC A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x04,"INC B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x0c,"INC C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x14,"INC D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x1c,"INC E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x24,"INC H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x2c,"INC L");
+        } 
     }
 }
 
