@@ -21,6 +21,24 @@
     INC E
     INC H 
     INC L
+    ADD A,A
+    ADD A,B 
+    ADD A,C
+    ADD A,D
+    ADD A,E 
+    ADD A,H 
+    ADD A,L 
+    ADD A,(HL)
+    ADD A,0x12
+    SUB A
+    SUB B 
+    SUB C
+    SUB D
+    SUB E 
+    SUB H 
+    SUB L 
+    SUB (HL)
+    SUB 0x12
 LOOP:
     JP LOOP
     HALT ;sdf

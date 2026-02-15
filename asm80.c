@@ -79,7 +79,6 @@ int main(int argc, char *argv[])
 
 static int inttoken(char buf[]);
 static int hextoken(char buf[]);
-static int hextoken1(char buf[]);
 static int issymch(char c);
 static int labeltoken(char buf[]);
 static int symboltoken(char buf[]);
@@ -88,6 +87,8 @@ static void gen_ret(void);
 static void gen_jp(void);
 static void gen_inc(void);
 static void gen_dec(void);
+static void gen_add(void);
+static void gen_sub(void);
 static void gen_code1(char* op);
 static void gen_op1(unsigned int v,char* op);
 static void gettoken(void);
@@ -396,7 +397,13 @@ static void gen_code1(char *op)
 	gen_inc();
     } else if (eqv(op, "DEC")){
 	gen_dec();
-    }
+    } else if (eqv(op, "ADD")){
+	gen_add();
+    } else if (eqv(op, "SUB")){
+	gen_sub();
+    } else if (eqv(op, "RET")){
+	gen_ret();
+    } 
     else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    printf("%04X  ", INDEX);
@@ -585,6 +592,94 @@ static void gen_inc(void)
         } 
     }
 }
+
+// ADD groupe
+static void gen_add(void)
+{
+    char str[128];
+
+    gettoken();
+    if(eqv(tok.buf,"A")){
+        gettoken(); //comma
+        if(tok.type != COMMA)
+            error("ADD operation expected commma",tok.buf);
+        gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x87,"ADD A,A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x80,"ADD A,B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x81,"ADD A,C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x82,"ADD A,D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x83,"ADD A,E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x84,"ADD A,H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x85,"ADD A,L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL")){
+             gen_op1(0x86,"ADD A,(HL)");
+        }
+        gettoken(); // )
+        if(tok.type != RPAREN)
+            error("ADD operation expected right paren",tok.buf);
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        int arg; 
+        arg=0;
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"ADD A,");
+        strcat(str,tok.buf);
+        gen_op2(0xc6,arg,str);
+    }
+    }
+}
+
+// SUB groupe
+static void gen_sub(void)
+{
+    char str[128];
+
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x97,"SUB A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x90,"SUB B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x91,"SUB C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x92,"SUB D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x93,"SUB E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x94,"SUB H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x95,"SUB L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL")){
+             gen_op1(0x96,"SUB (HL)");
+        }
+        gettoken(); // )
+        if(tok.type != RPAREN)
+            error("SUB operation expected right paren",tok.buf);
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        int arg; 
+        arg=0;
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"SUB ");
+        strcat(str,tok.buf);
+        gen_op2(0xd6,arg,str);
+    }
+    
+}
+
 
 
 static void emit8(unsigned int v)
