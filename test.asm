@@ -1,5 +1,6 @@
 ; test
     NOP
+    JP NZ,LOOP
     LD A,1
     LD A,(HL)
     LD A,(BC)
@@ -51,17 +52,28 @@
     RET Z
     RET NC
     RET C
+ LOOP2:
     RET
     CALL LOOP
     CALL 0x12
-    CALL NZ LOOP
-    CALL NZ 0x1234
-    CALL Z LOOP
-    CALL Z 0x1234
-    CALL NC LOOP
-    CALL NC 0x1234
+    CALL NZ,LOOP
+    CALL NZ,0x1234
+    CALL Z,LOOP
+    CALL Z,0x1234
+    CALL NC,LOOP
+    CALL NC,0x1234
+    JP NZ,LOOP
+    JP Z,LOOP
+    JP NC,LOOP2
+    JP C,LOOP2
+    JP PE,LOOP
+    JP PO,LOOP 
+    JP P,LOOP 
+    JP M,LOOP 
+    
 LOOP:
     JP LOOP
+    JP 0x1234
     HALT ;sdf
 
 ;loop:
