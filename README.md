@@ -23,7 +23,7 @@ The assembler converts simple `.asm` source files into raw binary.
 
 ```sh
 make
-
+```
 
 This will generate:
 
@@ -31,18 +31,18 @@ sim80
 
 asm80
 
-Clean build artifacts:
+## Clean build artifacts:
 
 make clean
 
-Usage
+## Usage
 Assemble (.asm → .bin)
 ./asm80 test.asm test.bin
 
 Run (.bin → execute in SIM80)
 ./sim80 test.bin
 
-Example
+## Example
 
 sim.asm
 ```
@@ -56,7 +56,7 @@ LOOP:
 ;end
 ```
 
-Run:
+## Run:
 
 asm80 sim.asm
 sim80 sim.bin
@@ -67,7 +67,7 @@ FEFDFCFBFAF9F8F7F6F5F4F3F2F1F0EFEEEDECEBEAE9E8E7E6E5E4E3E2E1E0DFDEDDDCDBDAD9D8D7
 halt 76 at 0007
 A=0 BC=0 DE=0 HL=0 PC=8 SP=0
 
-Purpose:
+## Purpose:
 
 Revisit the Z80 at an instruction-level understanding
 
