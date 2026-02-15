@@ -189,10 +189,6 @@ static void gettoken(void)
 		tok.type = HEXNUM;
 		break;
 	    }
-	    if (hextoken1(tok.buf)) {
-		tok.type = HEXNUM1;
-		break;
-	    }
 	    if (labeltoken(tok.buf)) {
 		int i;
 		for (i = 0; tok.buf[i]; i++)
@@ -246,24 +242,6 @@ static int hextoken(char buf[])
 	    else
 		return (0);
 	}
-	return (1);
-    }
-    return (0);
-}
-
-static int hextoken1(char buf[])
-{
-    int i, len;
-
-    len = strlen(buf);
-    if (buf[len - 1] == 'H' || buf[len - 1] == 'h') {
-	i = len - 2;
-	while (i >= 0) {
-	    if (!isxdigit(buf[i]))
-		return (0);
-	    i--;
-	}
-	buf[len - 1] = NUL;
 	return (1);
     }
     return (0);
@@ -490,7 +468,6 @@ static void gen_ld(void)
             return;
             case INTEGER:
             case HEXNUM:
-            case HEXNUM1:
             arg = strtol(tok.buf, NULL, 0);
             goto imediate;
             case LPAREN:// e.g. (HL)
@@ -501,7 +478,7 @@ static void gen_ld(void)
                 gen_op1(0x0A,"LD A,(BC)");
             } else if(eqv(tok.buf,"DE")){
                 gen_op1(0x1A,"LD A,(DE)");
-            } else if(tok.type == INTEGER || tok.type == HEXNUM || tok.type == HEXNUM1){
+            } else if(tok.type == INTEGER || tok.type == HEXNUM){
                 arg = strtol(tok.buf, NULL, 0);
                 strcpy(str,"LD A,(");
                 strcat(str,tok.buf);
