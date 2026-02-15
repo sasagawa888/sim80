@@ -92,6 +92,7 @@ static void gen_add(void);
 static void gen_sub(void);
 static void gen_push(void);
 static void gen_pop(void);
+static void gen_rst(void);
 static void gen_code1(char* op);
 static void gen_op1(unsigned int v,char* op);
 static void gettoken(void);
@@ -412,6 +413,8 @@ static void gen_code1(char *op)
 	gen_push();
     } else if (eqv(op, "POP")){
 	gen_pop();
+    } else if (eqv(op, "RST")){
+	gen_rst();
     } 
     else if (tok.type == LABEL) {
 	if (pass == 2) {
@@ -567,7 +570,7 @@ static void gen_jp(void)
                     if (idx < 0) 
                         error("undefined symbol", tok.buf);
                     arg = labels[idx].addr;
-                    strcpy(str,"CALL Z,");
+                    strcpy(str,"JP Z,");
                     strcat(str,tok.buf);
                 }   
                 gen_op3(0xca,arg,str);
@@ -1088,7 +1091,44 @@ static void gen_call(void)
         error("CALL opetation",tok.buf);
 }
 
+static void gen_rst(void)
+{
+    int arg;
+    gettoken();
+    if(tok.type == INTEGER || tok.type == HEXNUM){
+        arg = strtol(tok.buf, NULL, 0);
+        switch(arg){
+            case 0x00:
+                gen_op1(0xc7,"RST 0x00");
+                break;
+            case 0x08:
+                gen_op1(0xcf,"RST 0x08");
+                break;
+            case 0x10:
+                gen_op1(0xd7,"RST 0x10");
+                break;
+            case 0x18:
+                gen_op1(0xdf,"RST 0x18");
+                break;
+            case 0x20:
+                gen_op1(0xe7,"RST 0x20");
+                break;
+            case 0x28:
+                gen_op1(0xef,"RST 0x28");
+                break;
+            case 0x30:
+                gen_op1(0xf7,"RST 0x30");
+                break;
+            case 0x38:
+                gen_op1(0xff,"RST 0x38");
+                break;
+            default:
+                error("RST operation",tok.buf);
+        }
+    } else 
+        error("RST operation",tok.buf);
 
+}
 
 
 static void emit8(unsigned int v)

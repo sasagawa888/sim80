@@ -1,9 +1,15 @@
 #include <stdio.h>
+#include <stdint.h>
 
 unsigned char ram[0x10000];
-unsigned char PC;
-unsigned char  A, B, C, D, E, H, L;
+unsigned char  A,Z,C;
+uint16_t HL,BC,DE,PC,SP;
 
+#define HI(x) ((uint8_t)((x) >> 8))
+#define LO(x) ((uint8_t)((x) & 0xFF))
+
+#define SET_HI(x,v) (x = ((x) & 0x00FF) | ((v) << 8))
+#define SET_LO(x,v) (x = ((x) & 0xFF00) | (v))
 
 int main(int argc, char *argv[])
 {
@@ -26,12 +32,32 @@ int main(int argc, char *argv[])
     PC = 0;
     while (1) {
 	switch (ram[PC++]) {
+    case 0x00:      //NOP
+        break;
+    case 0x3c:      //INC A
+        A++;
+        if(A==0) Z = 1;
+        break;
+    case 0x3d:      //DEC A
+        A--;
+        if(A==0) Z=1;
+        break;
 	case 0x3e:		//LD A,nn
 	    A = ram[PC++];
 	    break;
 	case 0x76:		//HALT
         printf("halt %02X at %04X\n", ram[PC-1], PC-1);
+        printf("A=%X BC=%X DE=%X HL=%X PC=%X SP=%X\n",A,BC,DE,HL,PC,SP);
 	    return 0;
+    case 0xc2:      //JP NZ nn
+        uint8_t lo = ram[PC++];
+        uint8_t hi = ram[PC++];
+        uint16_t nn = (uint16_t)lo | ((uint16_t)hi << 8);
+        if (Z == 0) PC = nn;
+        break;
+    case 0xEF:      //RST 0x00
+        printf("%02X",A);
+        break;
     default:
         printf("unknown opcode %02X at %04X\n", ram[PC-1], PC-1);
         return 1;

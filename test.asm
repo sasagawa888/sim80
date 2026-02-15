@@ -70,11 +70,20 @@
     JP PO,LOOP 
     JP P,LOOP 
     JP M,LOOP 
-    
+
 LOOP:
     JP LOOP
     JP 0x1234
     HALT ;sdf
+
+    RST 0x00
+    RST 0x08
+    RST 0x10
+    RST 0x18
+    RST 0x20
+    RST 0x28
+    RST 0x30
+    RST 0x38
 
 ;loop:
 ;    HALT
