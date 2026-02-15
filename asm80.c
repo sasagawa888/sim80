@@ -95,6 +95,7 @@ static void emit16(unsigned int v);
 static void error(char* ope, char* msg);
 static int sym_find(const char *name);
 static int sym_define(char *label, uint16_t addr);
+static int eqv(char *x, char *y);
 
 
 static void gettoken(void)
@@ -121,6 +122,13 @@ static void gettoken(void)
 
     if (tok.ch == ',') {
 	tok.type = COMMA;
+	tok.ch = NUL;
+	return;
+    }
+
+
+    if (tok.ch == '.') {
+	tok.type = DOT;
 	tok.ch = NUL;
 	return;
     }
@@ -153,6 +161,9 @@ static void gettoken(void)
     case ',':
 	tok.type = COMMA;
 	break;
+    case '.':
+	tok.type = DOT;
+	break;
     case EOF:
 	tok.type = FILEEND;
 	return;
@@ -161,7 +172,7 @@ static void gettoken(void)
 	    tok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != ',') && (c != EOL)) {
+		   && (c != ')') && (c != ',') && (c != '.') && (c != EOL)) {
 		tok.buf[pos++] = c;
 	    }
 	    if (c == EOL)
@@ -394,14 +405,15 @@ static void gen_code(void)
 
 static void gen_code1(char *op)
 {
-    if (strcmp(op, "HALT") == 0) {
+    if (eqv(op, "HALT")) {
 	gen_code2(0x76, op);
-    } else if (strcmp(op, "NOP") == 0) {
+    } else if (eqv(op, "NOP")) {
 	gen_code2(0x00, op);
-    } else if (strcmp(op, "JP") == 0) {
+    } else if (eqv(op, "JP")) {
 	gen_jp();
-    } else if (strcmp(op, "LD") == 0)
+    } else if (eqv(op, "LD")){
 	gen_ld();
+    }
     else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    printf("%04X  ", INDEX);
@@ -427,10 +439,53 @@ static void gen_op1(void)
 
 }
 
+
+static void gen_code3(unsigned int v, unsigned int arg, char *op)
+{
+    if (pass == 2)
+	printf("%04X  ", INDEX);
+    emit8(v);
+    emit8(arg);
+    if (pass == 2)
+	printf("\t%s\n", op);
+}
+
+
 // LD groupe
 static void gen_ld(void)
 {
+    char str[64];
+    gettoken();
+    if(eqv(tok.buf,"A")){
+        gettoken(); //comma
+        if(tok.type != COMMA)
+            error("LD comma expected",tok.buf);
+        gettoken();
+        int arg,idx;
+        arg = 0;
+        switch(tok.type){
+            case INTEGER:
+            case HEXNUM:
+            case HEXNUM1:
+            arg = strtol(tok.buf, NULL, 0);
+            break;
+            case SYMBOL:
+            idx = sym_find(tok.buf);
+            if (idx < 0) 
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;
+            break;
+            case LPAREN:// e.g. (HL)
 
+            break;
+            default:
+            error("LD operand",tok.buf);
+        }
+        strcpy(str,"LD A,");
+        strcat(str,tok.buf);
+        gen_code3(0x3e,arg,str);
+    } else
+        error("LD operand ",tok.buf);
 }
 
 // RET groupe
@@ -479,4 +534,12 @@ static void emit16(unsigned int v)
     // Z80　0x1234 -> 0x34 0x12
     emit8(v & 0xFF);
     emit8((v >> 8) & 0xFF);
+}
+
+static int eqv(char *x, char *y)
+{
+    if(strcmp(x,y)==0)
+        return(1);
+    else 
+        return(0);
 }
