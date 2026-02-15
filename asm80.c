@@ -83,12 +83,11 @@ static int hextoken1(char buf[]);
 static int issymch(char c);
 static int labeltoken(char buf[]);
 static int symboltoken(char buf[]);
-static void gen_op1(void);
 static void gen_ld(void);
 static void gen_ret(void);
 static void gen_jp(void);
 static void gen_code1(char* op);
-static void gen_code2(unsigned int v,char* op);
+static void gen_op1(unsigned int v,char* op);
 static void gettoken(void);
 static void emit8(unsigned int v);
 static void emit16(unsigned int v);
@@ -406,9 +405,9 @@ static void gen_code(void)
 static void gen_code1(char *op)
 {
     if (eqv(op, "HALT")) {
-	gen_code2(0x76, op);
+	gen_op1(0x76, op);
     } else if (eqv(op, "NOP")) {
-	gen_code2(0x00, op);
+	gen_op1(0x00, op);
     } else if (eqv(op, "JP")) {
 	gen_jp();
     } else if (eqv(op, "LD")){
@@ -423,8 +422,8 @@ static void gen_code1(char *op)
     }
 }
 
-
-static void gen_code2(unsigned int v, char *op)
+// 1 bytes operation
+static void gen_op1(unsigned int v, char *op)
 {
     if (pass == 2)
 	printf("%04X  ", INDEX);
@@ -434,18 +433,25 @@ static void gen_code2(unsigned int v, char *op)
 }
 
 
-static void gen_op1(void)
-{
-
-}
-
-
-static void gen_code3(unsigned int v, unsigned int arg, char *op)
+// 2 bytes operation
+static void gen_op2(unsigned int v, unsigned int arg, char *op)
 {
     if (pass == 2)
 	printf("%04X  ", INDEX);
     emit8(v);
     emit8(arg);
+    if (pass == 2)
+	printf("\t%s\n", op);
+}
+
+
+// 3 bytes operation
+static void gen_op3(unsigned int v, unsigned int arg, char *op)
+{
+    if (pass == 2)
+	printf("%04X  ", INDEX);
+    emit8(v);
+    emit16(arg);
     if (pass == 2)
 	printf("\t%s\n", op);
 }
@@ -464,26 +470,58 @@ static void gen_ld(void)
         int arg,idx;
         arg = 0;
         switch(tok.type){
-            case INTEGER:
-            case HEXNUM:
-            case HEXNUM1:
-            arg = strtol(tok.buf, NULL, 0);
-            break;
             case SYMBOL:
+            if(pass == 2){
             idx = sym_find(tok.buf);
             if (idx < 0) 
                 error("undefined symbol", tok.buf);
             arg = labels[idx].addr;
-            break;
+            }   
+            imediate:
+            strcpy(str,"LD A,");
+            strcat(str,tok.buf);
+            gen_op2(0x3e,arg,str);
+            return;
+            case INTEGER:
+            case HEXNUM:
+            case HEXNUM1:
+            arg = strtol(tok.buf, NULL, 0);
+            goto imediate;
             case LPAREN:// e.g. (HL)
+            gettoken();
+            if(eqv(tok.buf,"HL")){
+                gen_op1(0x7e,"LD A,(HL)");
+            } else if(eqv(tok.buf,"BC")){
+                gen_op1(0x0A,"LD A,(BC)");
+            } else if(eqv(tok.buf,"DE")){
+                gen_op1(0x1A,"LD A,(DE)");
+            } else if(tok.type == INTEGER || tok.type == HEXNUM || tok.type == HEXNUM1){
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"LD A,(");
+                strcat(str,tok.buf);
+                strcat(str,")");
+                gen_op3(0x3a,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                idx = sym_find(tok.buf);
+                if (idx < 0){ 
+                    error("undefined symbol", tok.buf);}
+                arg = labels[idx].addr;
+                }
+                strcpy(str,"LD A,(");
+                strcat(str,tok.buf);
+                strcat(str,")");
+                gen_op3(0x3a,arg,str);
+            }
 
-            break;
+            gettoken();
+            if(tok.type != RPAREN)
+                error("LD indirect",tok.buf);
+            return;
             default:
             error("LD operand",tok.buf);
         }
-        strcpy(str,"LD A,");
-        strcat(str,tok.buf);
-        gen_code3(0x3e,arg,str);
+        
     } else
         error("LD operand ",tok.buf);
 }
