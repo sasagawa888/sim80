@@ -22,7 +22,7 @@ The assembler converts simple `.asm` source files into raw binary.
 ## Build
 
 ```sh
-make
+sudo make install
 ```
 
 This will generate:
