@@ -83,6 +83,7 @@ static int issymch(char c);
 static int labeltoken(char buf[]);
 static int symboltoken(char buf[]);
 static void gen_ld(void);
+static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
 static void gen_inc(void);
@@ -403,6 +404,8 @@ static void gen_code1(char *op)
 	gen_add();
     } else if (eqv(op, "SUB")){
 	gen_sub();
+    } else if (eqv(op, "CALL")){
+    gen_call();
     } else if (eqv(op, "RET")){
 	gen_ret();
     } else if (eqv(op, "PUSH")){
@@ -522,11 +525,6 @@ static void gen_ld(void)
         error("LD operand ",tok.buf);
 }
 
-// RET groupe
-static void gen_ret(void)
-{
-
-}
 
 // JP groupe
 static void gen_jp(void)
@@ -723,6 +721,207 @@ static void gen_pop(void)
     } else 
         error("POP operation",tok.buf);
 }
+
+// RET groupe
+static void gen_ret(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"NZ")){
+            gen_op1(0xc0,"RET NZ");
+        } else if(eqv(tok.buf,"Z")){
+            gen_op1(0xc8,"RET Z");
+        } else if(eqv(tok.buf,"NC")){
+            gen_op1(0xd0,"RET NC");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0xd8,"RET C");
+        } else {
+            tok.flag = BACK;
+            gen_op1(0xc9,"RET");
+        }
+
+    } else {
+        if(tok.type == LABEL){
+            tok.flag = BACK;
+            gen_op1(0xc9,"RET");
+        } else 
+        error("RET opetation",tok.buf);
+    }
+}
+
+
+// CALL groupe
+static void gen_call(void)
+{
+    int arg,idx;
+    char str[128];
+    arg = 0;
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"NZ")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL NZ,");
+                strcat(str,tok.buf);
+                gen_op3(0xc4,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL NZ,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xc4,arg,str);
+            }
+        } else if(eqv(tok.buf,"Z")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL Z,");
+                strcat(str,tok.buf);
+                gen_op3(0xcc,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL Z,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xcc,arg,str);
+            }
+        } else if(eqv(tok.buf,"NC")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL NC,");
+                strcat(str,tok.buf);
+                gen_op3(0xd4,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL NC,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xD4,arg,str);
+            }
+        } else if(eqv(tok.buf,"C")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL C,");
+                strcat(str,tok.buf);
+                gen_op3(0xdc,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL C,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xdc,arg,str);
+            }
+        } else if(eqv(tok.buf,"PO")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL PO,");
+                strcat(str,tok.buf);
+                gen_op3(0xe4,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL PO,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xe4,arg,str);
+            }
+        } else if(eqv(tok.buf,"PE")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL PE,");
+                strcat(str,tok.buf);
+                gen_op3(0xec,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL PE,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xec,arg,str);
+            }
+        } else if(eqv(tok.buf,"P")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL P,");
+                strcat(str,tok.buf);
+                gen_op3(0xf4,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL P,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xf4,arg,str);
+            }
+        } else if(eqv(tok.buf,"M")){
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"CALL M,");
+                strcat(str,tok.buf);
+                gen_op3(0xfc,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL M,");
+                    strcat(str,tok.buf);
+                }   
+                gen_op3(0xfc,arg,str);
+            }
+        } else {
+            if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"CALL ");
+                    strcat(str,tok.buf);
+            }   
+            gen_op3(0xcd,arg,str);
+        }
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+            arg = strtol(tok.buf, NULL, 0);
+            strcpy(str,"CALL ");
+            strcat(str,tok.buf);
+            gen_op3(0xcd,arg,str);
+    } else 
+        error("RET opetation",tok.buf);
+}
+
 
 
 

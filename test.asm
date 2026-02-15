@@ -47,6 +47,19 @@
     POP DE 
     POP HL 
     POP AF
+    RET NZ
+    RET Z
+    RET NC
+    RET C
+    RET
+    CALL LOOP
+    CALL 0x12
+    CALL NZ LOOP
+    CALL NZ 0x1234
+    CALL Z LOOP
+    CALL Z 0x1234
+    CALL NC LOOP
+    CALL NC 0x1234
 LOOP:
     JP LOOP
     HALT ;sdf
