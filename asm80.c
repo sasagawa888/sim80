@@ -89,6 +89,8 @@ static void gen_inc(void);
 static void gen_dec(void);
 static void gen_add(void);
 static void gen_sub(void);
+static void gen_push(void);
+static void gen_pop(void);
 static void gen_code1(char* op);
 static void gen_op1(unsigned int v,char* op);
 static void gettoken(void);
@@ -403,6 +405,10 @@ static void gen_code1(char *op)
 	gen_sub();
     } else if (eqv(op, "RET")){
 	gen_ret();
+    } else if (eqv(op, "PUSH")){
+	gen_push();
+    } else if (eqv(op, "POP")){
+	gen_pop();
     } 
     else if (tok.type == LABEL) {
 	if (pass == 2) {
@@ -678,6 +684,44 @@ static void gen_sub(void)
         gen_op2(0xd6,arg,str);
     }
     
+}
+
+// PUSH groupe
+static void gen_push(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"BC")){
+            gen_op1(0xc5,"PUSH BC");
+        } else if(eqv(tok.buf,"DE")){
+            gen_op1(0xd5,"PUSH DE");
+        } else if(eqv(tok.buf,"HL")){
+            gen_op1(0xe5,"PUSH HL");
+        } else  if(eqv(tok.buf,"AF")){
+            gen_op1(0xf5,"PUSH AF");
+        } else 
+            error("PUSH operation",tok.buf);
+    } else 
+        error("PUSH operation",tok.buf);
+}
+
+// POP groupe
+static void gen_pop(void)
+{
+    gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"BC")){
+            gen_op1(0xc1,"POP BC");
+        } else if(eqv(tok.buf,"DE")){
+            gen_op1(0xd1,"POP DE");
+        } else if(eqv(tok.buf,"HL")){
+            gen_op1(0xe1,"POP HL");
+        } else  if(eqv(tok.buf,"AF")){
+            gen_op1(0xf1,"POP AF");
+        } else 
+            error("POP operation",tok.buf);
+    } else 
+        error("POP operation",tok.buf);
 }
 
 

@@ -39,6 +39,14 @@
     SUB L 
     SUB (HL)
     SUB 0x12
+    PUSH BC 
+    PUSH DE 
+    PUSH HL 
+    PUSH AF
+    POP BC 
+    POP DE 
+    POP HL 
+    POP AF
 LOOP:
     JP LOOP
     HALT ;sdf
