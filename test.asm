@@ -95,6 +95,16 @@ LOOP:
     ADC A,(HL)
     ADC A,0x12
 
+    SBC A,A
+    SBC A,B 
+    SBC A,C
+    SBC A,D
+    SBC A,E 
+    SBC A,H 
+    SBC A,L 
+    SBC A,(HL)
+    SBC A,0x12
+
 LOOP3:
 ;loop:
 ;    HALT

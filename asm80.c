@@ -91,6 +91,7 @@ static void gen_dec(void);
 static void gen_add(void);
 static void gen_adc(void);
 static void gen_sub(void);
+static void gen_sbc(void);
 static void gen_push(void);
 static void gen_pop(void);
 static void gen_rst(void);
@@ -408,6 +409,8 @@ static void gen_code1(char *op)
 	gen_adc();
     } else if (eqv(op, "SUB")){
 	gen_sub();
+    } else if (eqv(op, "SBC")){
+	gen_sbc();
     } else if (eqv(op, "CALL")){
     gen_call();
     } else if (eqv(op, "RET")){
@@ -895,6 +898,54 @@ static void gen_sub(void)
     }
     
 }
+
+
+// SBC groupe
+static void gen_sbc(void)
+{
+    char str[128];
+
+    gettoken();
+    if(eqv(tok.buf,"A")){
+        gettoken(); //comma
+        if(tok.type != COMMA)
+            error("SBC operation expected commma",tok.buf);
+        gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x9F,"SBC A,A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x98,"SBC A,B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x99,"SBC A,C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x9A,"SBC A,D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x9B,"SBC A,E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x9C,"SBC A,H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x9D,"SBC A,L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL")){
+             gen_op1(0x9E,"SBC A,(HL)");
+        }
+        gettoken(); // )
+        if(tok.type != RPAREN)
+            error("SBC operation expected right paren",tok.buf);
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        int arg; 
+        arg=0;
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"SBC A,");
+        strcat(str,tok.buf);
+        gen_op2(0xDE,arg,str);
+    }
+    }
+}
+
 
 // PUSH groupe
 static void gen_push(void)
