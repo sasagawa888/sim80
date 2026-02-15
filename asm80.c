@@ -89,6 +89,7 @@ static void gen_jp(void);
 static void gen_inc(void);
 static void gen_dec(void);
 static void gen_add(void);
+static void gen_adc(void);
 static void gen_sub(void);
 static void gen_push(void);
 static void gen_pop(void);
@@ -403,6 +404,8 @@ static void gen_code1(char *op)
 	gen_dec();
     } else if (eqv(op, "ADD")){
 	gen_add();
+    } else if (eqv(op, "ADC")){
+	gen_adc();
     } else if (eqv(op, "SUB")){
 	gen_sub();
     } else if (eqv(op, "CALL")){
@@ -803,6 +806,54 @@ static void gen_add(void)
     }
     }
 }
+
+
+// ADC groupe
+static void gen_adc(void)
+{
+    char str[128];
+
+    gettoken();
+    if(eqv(tok.buf,"A")){
+        gettoken(); //comma
+        if(tok.type != COMMA)
+            error("ADC operation expected commma",tok.buf);
+        gettoken();
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"A")){
+            gen_op1(0x8F,"ADC A,A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0x88,"ADC A,B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0x89,"ADC A,C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0x8A,"ADC A,D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0x8B,"ADC A,E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0x8C,"ADC A,H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0x8D,"ADC A,L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL")){
+             gen_op1(0x8E,"ADC A,(HL)");
+        }
+        gettoken(); // )
+        if(tok.type != RPAREN)
+            error("ADD operation expected right paren",tok.buf);
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        int arg; 
+        arg=0;
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"ADC A,");
+        strcat(str,tok.buf);
+        gen_op2(0xcE,arg,str);
+    }
+    }
+}
+
 
 // SUB groupe
 static void gen_sub(void)

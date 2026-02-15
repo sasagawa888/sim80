@@ -72,7 +72,7 @@
     JP M,LOOP 
 
 LOOP:
-    JP LOOP
+    JP LOOP3
     JP 0x1234
     HALT ;sdf
 
@@ -85,6 +85,17 @@ LOOP:
     RST 0x30
     RST 0x38
 
+    ADC A,A
+    ADC A,B 
+    ADC A,C
+    ADC A,D
+    ADC A,E 
+    ADC A,H 
+    ADC A,L 
+    ADC A,(HL)
+    ADC A,0x12
+
+LOOP3:
 ;loop:
 ;    HALT
 
