@@ -6,8 +6,19 @@
     LD A,(BC)
     LD A,(DE)
     LD A,(0x1234)
+ABCD:
     LD A,(LOOP)
     LD A,LOOP
+    JR NZ,0X0000
+    JR NZ,ABCD
+    JR Z,0x0000
+    JR Z,ABCD
+    JR NC,0x0000
+    JR NC,ABCD 
+    JR C,0x0000
+    JR C,DEFG
+    JR 0x0000
+    JR DEFG
     DEC A
     DEC B
     DEC C
@@ -22,6 +33,7 @@
     INC E
     INC H 
     INC L
+DEFG:
     ADD A,A
     ADD A,B 
     ADD A,C

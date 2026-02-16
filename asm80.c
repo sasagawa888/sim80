@@ -86,6 +86,7 @@ static void gen_ld(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
+static void gen_jr(void);
 static void gen_inc(void);
 static void gen_dec(void);
 static void gen_add(void);
@@ -397,6 +398,8 @@ static void gen_code1(char *op)
 	gen_op1(0x00, op);
     } else if (eqv(op, "JP")) {
 	gen_jp();
+    } else if (eqv(op, "JR")) {
+	gen_jr();
     } else if (eqv(op, "LD")){
 	gen_ld();
     } else if (eqv(op, "INC")){
@@ -713,6 +716,161 @@ static void gen_jp(void)
             gen_op3(0xc3,arg,str);
     } else 
         error("JP opetation",tok.buf);
+}
+
+
+// JP groupe
+static void gen_jr(void)
+{
+    int arg,idx;
+    char str[128];
+    arg = 0;
+    gettoken(); // flag or label
+    if(tok.type == SYMBOL){
+        if(eqv(tok.buf,"NZ")){
+            gettoken(); //comma
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"JR NZ,");
+                strcat(str,tok.buf);
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x20,rel,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"JR NZ,");
+                    strcat(str,tok.buf);
+                }   
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x20,rel,str);
+            }
+        } else if(eqv(tok.buf,"Z")){
+            gettoken(); //comma
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"JR Z,");
+                strcat(str,tok.buf);
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x28,rel,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"JR Z,");
+                    strcat(str,tok.buf);
+                }   
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x28,rel,str);
+            }
+        } else if(eqv(tok.buf,"NC")){
+            gettoken(); //comma
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"JR NC,");
+                strcat(str,tok.buf);
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x30,rel,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"JR NC,");
+                    strcat(str,tok.buf);
+                }   
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x30,rel,str);
+            }
+        } else if(eqv(tok.buf,"C")){
+            gettoken(); //comma
+            gettoken();
+            if(tok.type == INTEGER || tok.type == HEXNUM){ 
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"JR C,");
+                strcat(str,tok.buf);
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x38,rel,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"JR C,");
+                    strcat(str,tok.buf);
+                }   
+                int offset = arg - (INDEX + 2);
+                if (offset < -128 || offset > 127) {
+                    error("JR operation",tok.buf);
+                }
+                unsigned char rel = (unsigned char)(offset & 0xFF);
+                gen_op2(0x38,rel,str);
+            }
+        }  else {
+            if(pass == 2){
+                    idx = sym_find(tok.buf);
+                    if (idx < 0) 
+                        error("undefined symbol", tok.buf);
+                    arg = labels[idx].addr;
+                    strcpy(str,"JR ");
+                    strcat(str,tok.buf);
+            }   
+            int offset = arg - (INDEX + 2);
+            if (offset < -128 || offset > 127) {
+                error("JR operation",tok.buf);
+            }
+            unsigned char rel = (unsigned char)(offset & 0xFF);
+            gen_op2(0x18,rel,str);
+        }
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+            arg = strtol(tok.buf, NULL, 0);
+            strcpy(str,"JR ");
+            strcat(str,tok.buf);
+            int offset = arg - (INDEX + 2);
+            if (offset < -128 || offset > 127) {
+                error("JR operation",tok.buf);
+            }
+            unsigned char rel = (unsigned char)(offset & 0xFF);
+            gen_op2(0x18,rel,str);
+    } else 
+        error("JR opetation",tok.buf);
 }
 
 
