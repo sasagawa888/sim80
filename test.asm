@@ -15,6 +15,20 @@
     OR E
     OR (HL)
     OR 0x12
+    XOR A 
+    XOR B
+    XOR C 
+    XOR D 
+    XOR E
+    XOR (HL)
+    XOR 0x12
+    CP A 
+    CP B
+    CP C 
+    CP D 
+    CP E
+    CP (HL)
+    CP 0x12
     LD A,1
     LD A,(HL)
     LD A,(BC)

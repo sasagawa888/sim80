@@ -91,6 +91,8 @@ static void gen_inc(void);
 static void gen_dec(void);
 static void gen_and(void);
 static void gen_or(void);
+static void gen_xor(void);
+static void gen_cp(void);
 static void gen_add(void);
 static void gen_adc(void);
 static void gen_sub(void);
@@ -412,6 +414,10 @@ static void gen_code1(char *op)
 	gen_and();
     } else if (eqv(op, "OR")){
 	gen_or();
+    } else if (eqv(op, "XOR")){
+	gen_xor();
+    } else if (eqv(op, "CP")){
+	gen_cp();
     } else if (eqv(op, "ADD")){
 	gen_add();
     } else if (eqv(op, "ADC")){
@@ -947,10 +953,6 @@ static void gen_and(void)
             gen_op1(0xA2,"AND D");
         } else if(eqv(tok.buf,"E")){
             gen_op1(0xA3,"AND E");
-        } else if(eqv(tok.buf,"H")){
-            gen_op1(0xA4,"AND H");
-        } else if(eqv(tok.buf,"L")){
-            gen_op1(0xA5,"AND L");
         } 
     } else if(tok.type == LPAREN){
         gettoken();
@@ -984,10 +986,6 @@ static void gen_or(void)
             gen_op1(0xB2,"OR D");
         } else if(eqv(tok.buf,"E")){
             gen_op1(0xB3,"OR E");
-        } else if(eqv(tok.buf,"H")){
-            gen_op1(0xB4,"OR H");
-        } else if(eqv(tok.buf,"L")){
-            gen_op1(0xB5,"OR L");
         } 
     } else if(tok.type == LPAREN){
         gettoken();
@@ -999,6 +997,72 @@ static void gen_or(void)
         strcpy(str,"OR ");
         strcat(str,tok.buf);
         gen_op2(0xF6,arg,str);
+    }
+}
+
+
+// XOR groupe
+static void gen_xor(void)
+{
+    char str[128];
+    int arg;
+    arg = 0;
+    gettoken();
+    if(tok.type == SYMBOL){ 
+        if(eqv(tok.buf,"A")){
+            gen_op1(0xAF,"XOR A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0xA8,"XOR B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0xA9,"XOR C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0xAA,"XOR D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0xAB,"XOR E");
+        }
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL"))
+            gen_op1(0xAE,"XOR (HL)");
+        gettoken(); // )
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"XOR ");
+        strcat(str,tok.buf);
+        gen_op2(0xEE,arg,str);
+    }
+}
+
+
+// CP groupe
+static void gen_cp(void)
+{
+    char str[128];
+    int arg;
+    arg = 0;
+    gettoken();
+    if(tok.type == SYMBOL){ 
+        if(eqv(tok.buf,"A")){
+            gen_op1(0xBF,"CP A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0xB8,"CP B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0xB9,"CP C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0xBA,"CP D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0xBB,"CP E");
+        }
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL"))
+            gen_op1(0xBE,"CP (HL)");
+        gettoken(); // )
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"CP ");
+        strcat(str,tok.buf);
+        gen_op2(0xFE,arg,str);
     }
 }
 
