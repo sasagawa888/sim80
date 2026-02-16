@@ -90,6 +90,7 @@ static void gen_jr(void);
 static void gen_inc(void);
 static void gen_dec(void);
 static void gen_and(void);
+static void gen_or(void);
 static void gen_add(void);
 static void gen_adc(void);
 static void gen_sub(void);
@@ -409,6 +410,8 @@ static void gen_code1(char *op)
 	gen_dec();
     } else if (eqv(op, "AND")){
 	gen_and();
+    } else if (eqv(op, "OR")){
+	gen_or();
     } else if (eqv(op, "ADD")){
 	gen_add();
     } else if (eqv(op, "ADC")){
@@ -959,6 +962,43 @@ static void gen_and(void)
         strcpy(str,"AND ");
         strcat(str,tok.buf);
         gen_op2(0xE6,arg,str);
+    }
+}
+
+
+// OR groupe
+static void gen_or(void)
+{
+    char str[128];
+    int arg;
+    arg = 0;
+    gettoken();
+    if(tok.type == SYMBOL){ 
+        if(eqv(tok.buf,"A")){
+            gen_op1(0xB7,"OR A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0xB0,"OR B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0xB1,"OR C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0xB2,"OR D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0xB3,"OR E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0xB4,"OR H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0xB5,"OR L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL"))
+            gen_op1(0xB6,"OR (HL)");
+        gettoken(); // )
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"OR ");
+        strcat(str,tok.buf);
+        gen_op2(0xF6,arg,str);
     }
 }
 

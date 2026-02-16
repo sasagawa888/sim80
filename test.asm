@@ -8,6 +8,13 @@
     AND E
     AND (HL)
     AND 0x12
+    OR A 
+    OR B
+    OR C 
+    OR D 
+    OR E
+    OR (HL)
+    OR 0x12
     LD A,1
     LD A,(HL)
     LD A,(BC)
