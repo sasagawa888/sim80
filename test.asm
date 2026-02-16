@@ -1,6 +1,13 @@
 ; test
     NOP
     JP NZ,LOOP
+    AND A 
+    AND B
+    AND C 
+    AND D 
+    AND E
+    AND (HL)
+    AND 0x12
     LD A,1
     LD A,(HL)
     LD A,(BC)

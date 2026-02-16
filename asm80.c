@@ -89,6 +89,7 @@ static void gen_jp(void);
 static void gen_jr(void);
 static void gen_inc(void);
 static void gen_dec(void);
+static void gen_and(void);
 static void gen_add(void);
 static void gen_adc(void);
 static void gen_sub(void);
@@ -406,6 +407,8 @@ static void gen_code1(char *op)
 	gen_inc();
     } else if (eqv(op, "DEC")){
 	gen_dec();
+    } else if (eqv(op, "AND")){
+	gen_and();
     } else if (eqv(op, "ADD")){
 	gen_add();
     } else if (eqv(op, "ADC")){
@@ -921,6 +924,44 @@ static void gen_inc(void)
         } 
     }
 }
+
+
+// AND groupe
+static void gen_and(void)
+{
+    char str[128];
+    int arg;
+    arg = 0;
+    gettoken();
+    if(tok.type == SYMBOL){ 
+        if(eqv(tok.buf,"A")){
+            gen_op1(0xA7,"AND A");
+        } else if(eqv(tok.buf,"B")){
+            gen_op1(0xA0,"AND B");
+        } else if(eqv(tok.buf,"C")){
+            gen_op1(0xA1,"AND C");
+        } else if(eqv(tok.buf,"D")){
+            gen_op1(0xA2,"AND D");
+        } else if(eqv(tok.buf,"E")){
+            gen_op1(0xA3,"AND E");
+        } else if(eqv(tok.buf,"H")){
+            gen_op1(0xA4,"AND H");
+        } else if(eqv(tok.buf,"L")){
+            gen_op1(0xA5,"AND L");
+        } 
+    } else if(tok.type == LPAREN){
+        gettoken();
+        if(eqv(tok.buf,"HL"))
+            gen_op1(0xA6,"AND (HL)");
+        gettoken(); // )
+    } else if(tok.type == INTEGER || tok.type == HEXNUM){
+        arg = strtol(tok.buf, NULL, 0);
+        strcpy(str,"AND ");
+        strcat(str,tok.buf);
+        gen_op2(0xE6,arg,str);
+    }
+}
+
 
 // ADD groupe
 static void gen_add(void)
