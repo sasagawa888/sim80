@@ -1,6 +1,6 @@
 ;test sim80
         LD   A,0xFF
-        JP LOAD
+        JP LOOP1
 LOOP:
         DEC  A
         RST 0x28
