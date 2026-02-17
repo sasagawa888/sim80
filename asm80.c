@@ -86,6 +86,7 @@ static void gen_ld(void);
 static void gen_lda(void);
 static void gen_ldb(void);
 static void gen_ldc(void);
+static void gen_ldd(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
@@ -493,6 +494,8 @@ static void gen_ld(void)
 	gen_ldb();
     } else if (eqv(tok.buf, "C")) {
 	gen_ldc();
+    } else if (eqv(tok.buf, "D")) {
+	gen_ldd();
     } 
 	else
 	error("LD operand ", tok.buf);
@@ -714,6 +717,73 @@ static void gen_ldc(void)
     }
 	}
 }
+
+
+// LD D,~
+static void gen_ldd(void)
+{
+    char str[64];
+    gettoken();			//comma
+    if (tok.type != COMMA)
+	error("LD comma expected", tok.buf);
+    gettoken();
+    int arg, idx;
+    arg = 0;
+    switch (tok.type) {
+    case SYMBOL:
+	if (eqv(tok.buf, "A")) {
+	    gen_op1(0x57, "LD D,A");
+	    return;
+	} else if (eqv(tok.buf, "B")) {
+	    gen_op1(0x50, "LD D,B");
+	    return;
+	} else if (eqv(tok.buf, "C")) {
+	    gen_op1(0x51, "LD D,C");
+	    return;
+	} else if (eqv(tok.buf, "D")) {
+	    gen_op1(0x52, "LD D,D");
+	    return;
+	} else if (eqv(tok.buf, "E")) {
+	    gen_op1(0x53, "LD D,E");
+	    return;
+	} else if (eqv(tok.buf, "H")) {
+	    gen_op1(0x54, "LD D,H");
+	    return;
+	} else if (eqv(tok.buf, "L")) {
+	    gen_op1(0x55, "LD D,L");
+	    return;
+	} else {
+	    if (pass == 2) {
+		idx = sym_find(tok.buf);
+		if (idx < 0)
+		    error("undefined symbol", tok.buf);
+		arg = labels[idx].addr;
+	    }
+	  imediate:
+	    strcpy(str, "LD D,");
+	    strcat(str, tok.buf);
+	    gen_op2(0x16, arg, str);
+	    return;
+	}
+    case INTEGER:
+    case HEXNUM:
+	arg = strtol(tok.buf, NULL, 0);
+	goto imediate;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x56, "LD D,(HL)");
+	
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect expected )", tok.buf);
+	return;
+    default:
+	error("LD operand", tok.buf);
+    }
+	}
+}
+
 
 
 // JP groupe

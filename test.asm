@@ -8,6 +8,7 @@
     LD A,H 
     LD A,L 
     LD A,(HL)
+    LD A,0x34
     LD B,A
     LD B,B 
     LD B,C
@@ -16,6 +17,7 @@
     LD B,H
     LD B,L
     LD B,(HL)
+    LD B,0x34
     LD C,A
     LD C,B 
     LD C,C
@@ -24,6 +26,16 @@
     LD C,H
     LD C,L
     LD C,(HL)
+    LD C,0x55
+    LD D,A
+    LD D,B 
+    LD D,C
+    LD D,D 
+    LD D,E
+    LD D,H
+    LD D,L
+    LD D,(HL)
+    LD D,0x55
     JP NZ,LOOP
     AND A 
     AND B
