@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "asm80.h"
 
+#define version 0.1
 
 FILE *input_stream;
 FILE *output_stream;
@@ -24,6 +25,8 @@ jmp_buf buf;
 
 int main(int argc, char *argv[])
 {
+	printf("asm80 ver %01g\n",version);
+
     if (argc < 2) {
 	printf("usage: asm80 file.asm [out.bin]\n");
 	return 1;

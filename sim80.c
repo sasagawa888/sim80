@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define version 0.1
+
 uint8_t ram[0x10000];
 
 /* 8-bit regs */
@@ -741,6 +743,8 @@ static int exec_one(uint8_t prefix, int have_prefix){
 }
 
 int main(int argc, char *argv[]){
+    printf("sim80 ver %01g\n",version);
+
     if(argc < 2){
         printf("usage: sim80 file.bin\n");
         return 1;
