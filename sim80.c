@@ -65,6 +65,12 @@ int main(int argc, char *argv[])
         printf("\nhalt %02X at %04X\n", ram[PC-1], PC-1);
         printf("A=%X BC=%X DE=%X HL=%X PC=%X SP=%X\n",A,BC,DE,HL,PC,SP);
 	    return 0;
+    case 0x78:      //LD A,B
+        A = HI(BC);
+        break;
+    case 0x79:      //LD A,C
+        A = LO(BC);
+        break;
     case 0xc2:      //JP NZ nn
         lo = ram[PC++];
         hi = ram[PC++];

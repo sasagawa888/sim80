@@ -495,6 +495,30 @@ static void gen_ld(void)
         arg = 0;
         switch(tok.type){
             case SYMBOL:
+            if(eqv(tok.buf,"A")){
+                gen_op1(0x7f,"LD A,A");
+                return;
+            } 
+            else if(eqv(tok.buf,"B")){
+                gen_op1(0x78,"LD A,B");
+                return;
+            } else if(eqv(tok.buf,"C")){
+                gen_op1(0x79,"LD A,C");
+                return;
+            } else if(eqv(tok.buf,"D")){
+                gen_op1(0x7A,"LD A,D");
+                return;
+            } else if(eqv(tok.buf,"E")){
+                gen_op1(0x7B,"LD A,E");
+                return;
+            } else if(eqv(tok.buf,"H")){
+                gen_op1(0x7C,"LD A,H");
+                return;
+            } else if(eqv(tok.buf,"L")){
+                gen_op1(0x7D,"LD A,L");
+                return;
+            }
+            else {
             if(pass == 2){
             idx = sym_find(tok.buf);
             if (idx < 0) 
@@ -506,6 +530,7 @@ static void gen_ld(void)
             strcat(str,tok.buf);
             gen_op2(0x3e,arg,str);
             return;
+            }
             case INTEGER:
             case HEXNUM:
             arg = strtol(tok.buf, NULL, 0);

@@ -1,5 +1,10 @@
 ; test
     NOP
+    LD A,A
+    LD A,B 
+    LD A,C
+    LD A,D 
+    LD A,E
     JP NZ,LOOP
     AND A 
     AND B
