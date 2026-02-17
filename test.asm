@@ -5,6 +5,25 @@
     LD A,C
     LD A,D 
     LD A,E
+    LD A,H 
+    LD A,L 
+    LD A,(HL)
+    LD B,A
+    LD B,B 
+    LD B,C
+    LD B,D 
+    LD B,E
+    LD B,H
+    LD B,L
+    LD B,(HL)
+    LD C,A
+    LD C,B 
+    LD C,C
+    LD C,D 
+    LD C,E
+    LD C,H
+    LD C,L
+    LD C,(HL)
     JP NZ,LOOP
     AND A 
     AND B
