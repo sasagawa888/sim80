@@ -90,6 +90,7 @@ static void gen_ldd(void);
 static void gen_lde(void);
 static void gen_ldh(void);
 static void gen_ldl(void);
+static void gen_ldhl(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
@@ -513,7 +514,15 @@ static void gen_ld(void)
 	gen_ldh();
     } else if (eqv(tok.buf, "L")) {
 	gen_ldl();
-    } 
+    } else if(tok.type == LPAREN){
+	gettoken(); //HL
+	if(!eqv(tok.buf,"HL"))
+		error("LD operation ", tok.buf);
+	gettoken(); //)
+	if(tok.type != RPAREN)
+		error("LD operation expected )",tok.buf);
+	gen_ldhl();	
+	}
 	else
 	error("LD operand ", tok.buf);
 }
@@ -999,6 +1008,51 @@ static void gen_ldl(void)
 	}
 }
 
+// LD (HL),~
+static void gen_ldhl(void)
+{
+
+    gettoken();                  // comma
+    if (tok.type != COMMA)
+        error("LD comma expected", tok.buf);
+
+    gettoken();                  // src operand
+
+    switch (tok.type) {
+    case SYMBOL:
+        if (eqv(tok.buf, "A")) {
+            gen_op1(0x77, "LD (HL),A");
+            return;
+        } else if (eqv(tok.buf, "B")) {
+            gen_op1(0x70, "LD (HL),B");
+            return;
+        } else if (eqv(tok.buf, "C")) {
+            gen_op1(0x71, "LD (HL),C");
+            return;
+        } else if (eqv(tok.buf, "D")) {
+            gen_op1(0x72, "LD (HL),D");
+            return;
+        } else if (eqv(tok.buf, "E")) {
+            gen_op1(0x73, "LD (HL),E");
+            return;
+        } else if (eqv(tok.buf, "H")) {
+            gen_op1(0x74, "LD (HL),H");
+            return;
+        } else if (eqv(tok.buf, "L")) {
+            gen_op1(0x75, "LD (HL),L");
+            return;
+        } else if (eqv(tok.buf, "(HL)")) {
+            /* 0x76 は HALT。LD (HL),(HL) は存在しない(表ではこう見えても実体はHALT) */
+            error("LD (HL),(HL) is HALT (0x76)", tok.buf);
+        } else {
+            error("LD operand", tok.buf);
+        }
+        break;
+
+    default:
+        error("LD operand", tok.buf);
+    }
+}
 
 // JP groupe
 static void gen_jp(void)

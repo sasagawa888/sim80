@@ -1,4 +1,11 @@
 ABCD:
+    LD (HL),A
+    LD (HL),B 
+    LD (HL),C
+    LD (HL),D 
+    LD (HL),E 
+    LD (HL),H
+    LD (HL),L
     LD A,(LOOP)
     LD A,LOOP
     JR NZ,0X0077
