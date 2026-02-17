@@ -5,7 +5,7 @@ ABCD:
     JR NZ,ABCD
     JR Z,0x0077
     JR Z,ABCD
-    JR NC,0x077
+    JR NC,0x0077
     JR NC,ABCD 
     JR C,0x0011
     JR C,ABCD

@@ -2,8 +2,9 @@
 #include <stdint.h>
 
 unsigned char ram[0x10000];
-unsigned char  A,Z,C;
-uint16_t HL,BC,DE,PC,SP;
+unsigned char  A,Z,C,P;
+uint16_t HL,BC,DE,PC,SP,IX,IY;
+uint16_t A1,HL1,BC1,DE1,IX1,IY1;
 
 #define HI(x) ((uint8_t)((x) >> 8))
 #define LO(x) ((uint8_t)((x) & 0xFF))
@@ -73,6 +74,12 @@ int main(int argc, char *argv[])
         break;
     case 0x79:      //LD A,C
         A = LO(BC);
+        break;
+    case 0x80:      //ADD A,B
+        A = A+HI(BC);
+        A1 = A; A1 = A1+HI(BC);
+        if(A1 >0xFF)
+            C = 1;
         break;
     case 0xc2:      //JP NZ nn
         lo = ram[PC++];

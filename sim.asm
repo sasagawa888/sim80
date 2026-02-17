@@ -16,6 +16,7 @@ LOOP1:
 LOAD:
         LD B,0x12
         LD A,B 
+        ADD A,B
         RST 0x28
         HALT
 
