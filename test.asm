@@ -36,6 +36,33 @@
     LD D,L
     LD D,(HL)
     LD D,0x55
+    LD E,A
+    LD E,B 
+    LD E,C
+    LD E,D 
+    LD E,E
+    LD E,H
+    LD E,L
+    LD E,(HL)
+    LD E,0x55
+    LD H,A
+    LD H,B 
+    LD H,C
+    LD H,D 
+    LD H,E
+    LD H,H
+    LD H,L
+    LD H,(HL)
+    LD H,0x55
+    LD L,A
+    LD L,B 
+    LD L,C
+    LD L,D 
+    LD L,E
+    LD L,H
+    LD L,L
+    LD L,(HL)
+    LD L,0x55
     JP NZ,LOOP
     AND A 
     AND B
@@ -73,16 +100,16 @@
 ABCD:
     LD A,(LOOP)
     LD A,LOOP
-    JR NZ,0X0000
-    JR NZ,ABCD
-    JR Z,0x0000
+    JR NZ,0X0011
+    JR NZ,DEFG
+    JR Z,0x0011
     JR Z,ABCD
-    JR NC,0x0000
+    JR NC,0x001
     JR NC,ABCD 
-    JR C,0x0000
-    JR C,DEFG
-    JR 0x0000
-    JR DEFG
+    JR C,0x0011
+    ;JR C,ABCD
+    JR 0x0011
+    ;JR ABCD
     DEC A
     DEC B
     DEC C
