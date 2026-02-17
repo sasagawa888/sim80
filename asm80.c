@@ -569,6 +569,89 @@ static void gen_ld(void)
             default:
             error("LD operand",tok.buf);
         }
+    }else     if(eqv(tok.buf,"B")){
+        gettoken(); //comma
+        if(tok.type != COMMA)
+            error("LD comma expected",tok.buf);
+        gettoken();
+        int arg,idx;
+        arg = 0;
+        switch(tok.type){
+            case SYMBOL:
+            if(eqv(tok.buf,"A")){
+                gen_op1(0x7f,"LD B,A");
+                return;
+            } 
+            else if(eqv(tok.buf,"B")){
+                gen_op1(0x78,"LD B,B");
+                return;
+            } else if(eqv(tok.buf,"C")){
+                gen_op1(0x79,"LD B,C");
+                return;
+            } else if(eqv(tok.buf,"D")){
+                gen_op1(0x7A,"LD B,D");
+                return;
+            } else if(eqv(tok.buf,"E")){
+                gen_op1(0x7B,"LD B,E");
+                return;
+            } else if(eqv(tok.buf,"H")){
+                gen_op1(0x7C,"LD B,H");
+                return;
+            } else if(eqv(tok.buf,"L")){
+                gen_op1(0x7D,"LD B,L");
+                return;
+            }
+            else {
+            if(pass == 2){
+            idx = sym_find(tok.buf);
+            if (idx < 0) 
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;
+            }   
+            imediate1:
+            strcpy(str,"LD B,");
+            strcat(str,tok.buf);
+            gen_op2(0x06,arg,str);
+            return;
+            }
+            case INTEGER:
+            case HEXNUM:
+            arg = strtol(tok.buf, NULL, 0);
+            goto imediate1;
+            case LPAREN:// e.g. (HL)
+            gettoken();
+            if(eqv(tok.buf,"HL")){
+                gen_op1(0x7e,"LD B,(HL)");
+            } else if(eqv(tok.buf,"BC")){
+                gen_op1(0x0A,"LD B,(BC)");
+            } else if(eqv(tok.buf,"DE")){
+                gen_op1(0x1A,"LD B,(DE)");
+            } else if(tok.type == INTEGER || tok.type == HEXNUM){
+                arg = strtol(tok.buf, NULL, 0);
+                strcpy(str,"LD B,(");
+                strcat(str,tok.buf);
+                strcat(str,")");
+                gen_op3(0x3a,arg,str);
+            } else if(tok.type == SYMBOL){
+                if(pass == 2){
+                idx = sym_find(tok.buf);
+                if (idx < 0){ 
+                    error("undefined symbol", tok.buf);}
+                arg = labels[idx].addr;
+                }
+                strcpy(str,"LD B,(");
+                strcat(str,tok.buf);
+                strcat(str,")");
+                gen_op3(0x3a,arg,str);
+            }
+
+            gettoken();
+            if(tok.type != RPAREN)
+                error("LD indirect",tok.buf);
+            return;
+            default:
+            error("LD operand",tok.buf);
+        }
         
     } else
         error("LD operand ",tok.buf);

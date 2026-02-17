@@ -14,8 +14,8 @@ LOOP1:
         HALT
 
 LOAD:
+        LD B,0x12
         LD A,B 
-        LD A,C
         RST 0x28
         HALT
 

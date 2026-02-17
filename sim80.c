@@ -40,6 +40,9 @@ int main(int argc, char *argv[])
 	switch (ram[PC++]) {
     case 0x00:      //NOP
         break;
+    case 0x06:      //LD B,nn
+        SET_HI(BC,ram[PC++]);
+        break;
     case 0x18:      //JR n
         d = (int8_t)ram[PC++];
         PC = (uint16_t)(PC + d); 
