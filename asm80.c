@@ -130,18 +130,21 @@ static void gettoken(void)
 
     if (tok.ch == ')') {
 	tok.type = RPAREN;
+	tok.buf[0] = NUL; 
 	tok.ch = NUL;
 	return;
     }
 
     if (tok.ch == '(') {
 	tok.type = LPAREN;
+	tok.buf[0] = NUL; 
 	tok.ch = NUL;
 	return;
     }
 
     if (tok.ch == ',') {
 	tok.type = COMMA;
+	tok.buf[0] = NUL; 
 	tok.ch = NUL;
 	return;
     }
@@ -153,13 +156,15 @@ static void gettoken(void)
 	return;
     }
 
+
   skip:
     c = fgetc(input_stream);
     while ((c == SPACE) || (c == EOL) || (c == TAB)) {
+		if (c == EOL)
+			lineno++;
 	c = fgetc(input_stream);
     }
-    if (c == EOL)
-	lineno++;
+    
 
     if (c == ';') {
 	while (c != EOL && c != EOF)
@@ -168,8 +173,11 @@ static void gettoken(void)
 	    tok.type = FILEEND;
 	    return;
 	}
+	if(c == EOL)
+		lineno++;
 	goto skip;
     }
+	
 
     switch (c) {
     case '(':

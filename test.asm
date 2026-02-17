@@ -1,4 +1,16 @@
-; test
+ABCD:
+    LD A,(LOOP)
+    LD A,LOOP
+    JR NZ,0X0077
+    JR NZ,ABCD
+    JR Z,0x0077
+    JR Z,ABCD
+    JR NC,0x077
+    JR NC,ABCD 
+    JR C,0x0011
+    JR C,ABCD
+    JR 0x0011
+    JR ABCD
     NOP
     LD A,A
     LD A,B 
@@ -97,19 +109,8 @@
     LD A,(BC)
     LD A,(DE)
     LD A,(0x1234)
-ABCD:
     LD A,(LOOP)
     LD A,LOOP
-    JR NZ,0X0011
-    JR NZ,DEFG
-    JR Z,0x0011
-    JR Z,ABCD
-    JR NC,0x001
-    JR NC,ABCD 
-    JR C,0x0011
-    ;JR C,ABCD
-    JR 0x0011
-    ;JR ABCD
     DEC A
     DEC B
     DEC C
@@ -177,7 +178,7 @@ DEFG:
 LOOP:
     JP LOOP3
     JP 0x1234
-    HALT ;sdf
+    HALT 
 
     RST 0x00
     RST 0x08
@@ -197,7 +198,6 @@ LOOP:
     ADC A,L 
     ADC A,(HL)
     ADC A,0x12
-
     SBC A,A
     SBC A,B 
     SBC A,C
@@ -207,8 +207,19 @@ LOOP:
     SBC A,L 
     SBC A,(HL)
     SBC A,0x12
-
 LOOP3:
-;loop:
-;    HALT
+;asdf
+ABCD1:
+    LD A,(LOOP)
+    LD A,LOOP
+    JR NZ,0X0077
+    ;JR NZ,ABCD1
+    ;JR Z,0x0077
+    ;JR Z,ABCD1
+    ;JR NC,0x077
+    ;JR NC,ABCD1 
+    ;JR C,0x0011
+    ;JR C,ABCD1
+    ;JR 0x0011
+    ;JR ABCD1
 
