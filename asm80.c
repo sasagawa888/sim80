@@ -131,21 +131,21 @@ static void gettoken(void)
 
     if (tok.ch == ')') {
 	tok.type = RPAREN;
-	tok.buf[0] = NUL; 
+	tok.buf[0] = NUL;
 	tok.ch = NUL;
 	return;
     }
 
     if (tok.ch == '(') {
 	tok.type = LPAREN;
-	tok.buf[0] = NUL; 
+	tok.buf[0] = NUL;
 	tok.ch = NUL;
 	return;
     }
 
     if (tok.ch == ',') {
 	tok.type = COMMA;
-	tok.buf[0] = NUL; 
+	tok.buf[0] = NUL;
 	tok.ch = NUL;
 	return;
     }
@@ -161,11 +161,11 @@ static void gettoken(void)
   skip:
     c = fgetc(input_stream);
     while ((c == SPACE) || (c == EOL) || (c == TAB)) {
-		if (c == EOL)
-			lineno++;
+	if (c == EOL)
+	    lineno++;
 	c = fgetc(input_stream);
     }
-    
+
 
     if (c == ';') {
 	while (c != EOL && c != EOF)
@@ -174,11 +174,11 @@ static void gettoken(void)
 	    tok.type = FILEEND;
 	    return;
 	}
-	if(c == EOL)
-		lineno++;
+	if (c == EOL)
+	    lineno++;
 	goto skip;
     }
-	
+
 
     switch (c) {
     case '(':
@@ -514,16 +514,15 @@ static void gen_ld(void)
 	gen_ldh();
     } else if (eqv(tok.buf, "L")) {
 	gen_ldl();
-    } else if(tok.type == LPAREN){
-	gettoken(); //HL
-	if(!eqv(tok.buf,"HL"))
-		error("LD operation ", tok.buf);
-	gettoken(); //)
-	if(tok.type != RPAREN)
-		error("LD operation expected )",tok.buf);
-	gen_ldhl();	
-	}
-	else
+    } else if (tok.type == LPAREN) {
+	gettoken();		//HL
+	if (!eqv(tok.buf, "HL"))
+	    error("LD operation ", tok.buf);
+	gettoken();		//)
+	if (tok.type != RPAREN)
+	    error("LD operation expected )", tok.buf);
+	gen_ldhl();
+    } else
 	error("LD operand ", tok.buf);
 }
 
@@ -668,15 +667,15 @@ static void gen_ldb(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x46, "LD B,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 // LD C,~
@@ -733,15 +732,15 @@ static void gen_ldc(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x4E, "LD C,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 
@@ -799,15 +798,15 @@ static void gen_ldd(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x56, "LD D,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 
@@ -865,15 +864,15 @@ static void gen_lde(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x5E, "LD E,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 
@@ -931,15 +930,15 @@ static void gen_ldh(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x66, "LD H,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 
@@ -997,60 +996,60 @@ static void gen_ldl(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x6E, "LD L,(HL)");
-	
-	gettoken();
-	if (tok.type != RPAREN)
-	    error("LD indirect expected )", tok.buf);
-	return;
+
+	    gettoken();
+	    if (tok.type != RPAREN)
+		error("LD indirect expected )", tok.buf);
+	    return;
     default:
-	error("LD operand", tok.buf);
-    }
+	    error("LD operand", tok.buf);
 	}
+    }
 }
 
 // LD (HL),~
 static void gen_ldhl(void)
 {
 
-    gettoken();                  // comma
+    gettoken();			// comma
     if (tok.type != COMMA)
-        error("LD comma expected", tok.buf);
+	error("LD comma expected", tok.buf);
 
-    gettoken();                  // src operand
+    gettoken();			// src operand
 
     switch (tok.type) {
     case SYMBOL:
-        if (eqv(tok.buf, "A")) {
-            gen_op1(0x77, "LD (HL),A");
-            return;
-        } else if (eqv(tok.buf, "B")) {
-            gen_op1(0x70, "LD (HL),B");
-            return;
-        } else if (eqv(tok.buf, "C")) {
-            gen_op1(0x71, "LD (HL),C");
-            return;
-        } else if (eqv(tok.buf, "D")) {
-            gen_op1(0x72, "LD (HL),D");
-            return;
-        } else if (eqv(tok.buf, "E")) {
-            gen_op1(0x73, "LD (HL),E");
-            return;
-        } else if (eqv(tok.buf, "H")) {
-            gen_op1(0x74, "LD (HL),H");
-            return;
-        } else if (eqv(tok.buf, "L")) {
-            gen_op1(0x75, "LD (HL),L");
-            return;
-        } else if (eqv(tok.buf, "(HL)")) {
-            /* 0x76 は HALT。LD (HL),(HL) は存在しない(表ではこう見えても実体はHALT) */
-            error("LD (HL),(HL) is HALT (0x76)", tok.buf);
-        } else {
-            error("LD operand", tok.buf);
-        }
-        break;
+	if (eqv(tok.buf, "A")) {
+	    gen_op1(0x77, "LD (HL),A");
+	    return;
+	} else if (eqv(tok.buf, "B")) {
+	    gen_op1(0x70, "LD (HL),B");
+	    return;
+	} else if (eqv(tok.buf, "C")) {
+	    gen_op1(0x71, "LD (HL),C");
+	    return;
+	} else if (eqv(tok.buf, "D")) {
+	    gen_op1(0x72, "LD (HL),D");
+	    return;
+	} else if (eqv(tok.buf, "E")) {
+	    gen_op1(0x73, "LD (HL),E");
+	    return;
+	} else if (eqv(tok.buf, "H")) {
+	    gen_op1(0x74, "LD (HL),H");
+	    return;
+	} else if (eqv(tok.buf, "L")) {
+	    gen_op1(0x75, "LD (HL),L");
+	    return;
+	} else if (eqv(tok.buf, "(HL)")) {
+	    /* 0x76 は HALT。LD (HL),(HL) は存在しない(表ではこう見えても実体はHALT) */
+	    error("LD (HL),(HL) is HALT (0x76)", tok.buf);
+	} else {
+	    error("LD operand", tok.buf);
+	}
+	break;
 
     default:
-        error("LD operand", tok.buf);
+	error("LD operand", tok.buf);
     }
 }
 
@@ -1238,9 +1237,12 @@ static void gen_jp(void)
 // JP groupe
 static void gen_jr(void)
 {
-    int arg, idx;
+    unsigned short arg, idx;
+    unsigned char rel;
+    int offset;
     char str[128];
     arg = 0;
+    rel = 0;
     gettoken();			// flag or label
     if (tok.type == SYMBOL) {
 	if (eqv(tok.buf, "NZ")) {
@@ -1250,11 +1252,11 @@ static void gen_jr(void)
 		arg = strtol(tok.buf, NULL, 0);
 		strcpy(str, "JR NZ,");
 		strcat(str, tok.buf);
-		int offset = arg - (INDEX + 2);
+		offset = arg - (INDEX + 2);
 		if (offset < -128 || offset > 127) {
 		    error("JR operation", tok.buf);
 		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
+		rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x20, rel, str);
 	    } else if (tok.type == SYMBOL) {
 		if (pass == 2) {
@@ -1264,12 +1266,12 @@ static void gen_jr(void)
 		    arg = labels[idx].addr;
 		    strcpy(str, "JR NZ,");
 		    strcat(str, tok.buf);
+		    offset = arg - (INDEX + 2);
+		    if (offset < -128 || offset > 127) {
+			error("JR operation", tok.buf);
+		    }
+		    rel = (unsigned char) (offset & 0xFF);
 		}
-		int offset = arg - (INDEX + 2);
-		if (offset < -128 || offset > 127) {
-		    error("JR operation", tok.buf);
-		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x20, rel, str);
 	    }
 	} else if (eqv(tok.buf, "Z")) {
@@ -1279,11 +1281,11 @@ static void gen_jr(void)
 		arg = strtol(tok.buf, NULL, 0);
 		strcpy(str, "JR Z,");
 		strcat(str, tok.buf);
-		int offset = arg - (INDEX + 2);
+		offset = arg - (INDEX + 2);
 		if (offset < -128 || offset > 127) {
 		    error("JR operation", tok.buf);
 		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
+		rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x28, rel, str);
 	    } else if (tok.type == SYMBOL) {
 		if (pass == 2) {
@@ -1293,12 +1295,12 @@ static void gen_jr(void)
 		    arg = labels[idx].addr;
 		    strcpy(str, "JR Z,");
 		    strcat(str, tok.buf);
+		    offset = arg - (INDEX + 2);
+		    if (offset < -128 || offset > 127) {
+			error("JR operation", tok.buf);
+		    }
+		    rel = (unsigned char) (offset & 0xFF);
 		}
-		int offset = arg - (INDEX + 2);
-		if (offset < -128 || offset > 127) {
-		    error("JR operation", tok.buf);
-		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x28, rel, str);
 	    }
 	} else if (eqv(tok.buf, "NC")) {
@@ -1312,7 +1314,7 @@ static void gen_jr(void)
 		if (offset < -128 || offset > 127) {
 		    error("JR operation", tok.buf);
 		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
+		rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x30, rel, str);
 	    } else if (tok.type == SYMBOL) {
 		if (pass == 2) {
@@ -1322,12 +1324,12 @@ static void gen_jr(void)
 		    arg = labels[idx].addr;
 		    strcpy(str, "JR NC,");
 		    strcat(str, tok.buf);
+		    offset = arg - (INDEX + 2);
+		    if (offset < -128 || offset > 127) {
+			error("JR operation", tok.buf);
+		    }
+		    rel = (unsigned char) (offset & 0xFF);
 		}
-		int offset = arg - (INDEX + 2);
-		if (offset < -128 || offset > 127) {
-		    error("JR operation", tok.buf);
-		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x30, rel, str);
 	    }
 	} else if (eqv(tok.buf, "C")) {
@@ -1337,11 +1339,11 @@ static void gen_jr(void)
 		arg = strtol(tok.buf, NULL, 0);
 		strcpy(str, "JR C,");
 		strcat(str, tok.buf);
-		int offset = arg - (INDEX + 2);
+		offset = arg - (INDEX + 2);
 		if (offset < -128 || offset > 127) {
 		    error("JR operation", tok.buf);
 		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
+		rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x38, rel, str);
 	    } else if (tok.type == SYMBOL) {
 		if (pass == 2) {
@@ -1351,12 +1353,12 @@ static void gen_jr(void)
 		    arg = labels[idx].addr;
 		    strcpy(str, "JR C,");
 		    strcat(str, tok.buf);
+		    offset = arg - (INDEX + 2);
+		    if (offset < -128 || offset > 127) {
+			error("JR operation", tok.buf);
+		    }
+		    rel = (unsigned char) (offset & 0xFF);
 		}
-		int offset = arg - (INDEX + 2);
-		if (offset < -128 || offset > 127) {
-		    error("JR operation", tok.buf);
-		}
-		unsigned char rel = (unsigned char) (offset & 0xFF);
 		gen_op2(0x38, rel, str);
 	    }
 	} else {
@@ -1367,23 +1369,24 @@ static void gen_jr(void)
 		arg = labels[idx].addr;
 		strcpy(str, "JR ");
 		strcat(str, tok.buf);
+		offset = arg - (INDEX + 2);
+		if (offset < -128 || offset > 127) {
+		    error("JR operation", tok.buf);
+		}
+		rel = (unsigned char) (offset & 0xFF);
 	    }
-	    int offset = arg - (INDEX + 2);
-	    if (offset < -128 || offset > 127) {
-		error("JR operation", tok.buf);
-	    }
-	    unsigned char rel = (unsigned char) (offset & 0xFF);
+
 	    gen_op2(0x18, rel, str);
 	}
     } else if (tok.type == INTEGER || tok.type == HEXNUM) {
 	arg = strtol(tok.buf, NULL, 0);
 	strcpy(str, "JR ");
 	strcat(str, tok.buf);
-	int offset = arg - (INDEX + 2);
+	offset = arg - (INDEX + 2);
 	if (offset < -128 || offset > 127) {
 	    error("JR operation", tok.buf);
 	}
-	unsigned char rel = (unsigned char) (offset & 0xFF);
+	rel = (unsigned char) (offset & 0xFF);
 	gen_op2(0x18, rel, str);
     } else
 	error("JR opetation", tok.buf);

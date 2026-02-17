@@ -219,14 +219,14 @@ LOOP3:
 ABCD1:
     LD A,(LOOP)
     LD A,LOOP
-    ;JR NZ,0X0077
-    ;JR NZ,ABCD1
-    ;JR Z,0x0077
-    ;JR Z,ABCD1
-    ;JR NC,0x077
-    ;JR NC,ABCD1 
-    ;JR C,0x0011
-    ;JR C,ABCD1
-    ;JR 0x0011
-    ;JR ABCD1
+    JR NZ,0X0119
+    JR NZ,ABCD1
+    JR Z,0x0119
+    JR Z,ABCD1
+    JR NC,0x0119
+    JR NC,ABCD1 
+    JR C,0x0119
+    JR C,ABCD1
+    JR 0x0119
+    JR ABCD1
 
