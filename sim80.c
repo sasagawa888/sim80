@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 
     uint8_t lo;
     uint8_t hi;
+    int8_t d;
     uint16_t nn; 
 
     PC = 0;
@@ -39,9 +40,13 @@ int main(int argc, char *argv[])
 	switch (ram[PC++]) {
     case 0x00:      //NOP
         break;
+    case 0x18:      //JR n
+        d = (int8_t)ram[PC++];
+        PC = (uint16_t)(PC + d); 
+        break;
     case 0x20:      //JR NZ
         if(Z == 0){
-            int8_t d = (int8_t)ram[PC++];
+            d = (int8_t)ram[PC++];
             PC = (uint16_t)(PC + d); 
         }
         break;
