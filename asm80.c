@@ -987,7 +987,7 @@ static void gen_ldl(void)
     case LPAREN:		// e.g. (HL)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
-	    gen_op1(0x66, "LD L,(HL)");
+	    gen_op1(0x6E, "LD L,(HL)");
 	
 	gettoken();
 	if (tok.type != RPAREN)

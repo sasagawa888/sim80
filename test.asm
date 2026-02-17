@@ -212,7 +212,7 @@ LOOP3:
 ABCD1:
     LD A,(LOOP)
     LD A,LOOP
-    JR NZ,0X0077
+    ;JR NZ,0X0077
     ;JR NZ,ABCD1
     ;JR Z,0x0077
     ;JR Z,ABCD1
