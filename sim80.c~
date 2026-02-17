@@ -31,14 +31,59 @@ int main(int argc, char *argv[])
 
     PC = 0;
     while (1) {
-	switch (ram[PC++]) {
-    case 0x00:      //NOP
-        break;
-    case 0x20:      //JR NZ
-        if(Z == 0){
-            int8_t d = (int8_t)ram[PC++];
-            PC = (uint16_t)(PC + d); 
+    unsigned char op = ram[PC++];
+    unsigned char x = op >> 6;          // upper 2bit   groupe
+    unsigned char y = (op >> 3) & 7;    // middle 3bit　register
+    unsigned char z = op & 7;           // lower 3bit   operation
+    switch (x) {
+case 0x0:
+    switch (z) {
+    case 0x0:
+        switch (y) {
+        case 0x0: /* NOP */ break;
+        default:  /* TODO */ break;
         }
+        break; // z==0
+
+    case 0x4: // INC r[y]
+        if (y == 0x7) {      // Aだけ
+            A++;
+            Z = (A == 0);
+        } else {
+            /* TODO: INC other regs */
+        }
+        break;
+
+    case 0x5: // DEC r[y]
+        if (y == 0x7) {      // Aだけ
+            A--;
+            Z = (A == 0);
+        } else {
+            /* TODO: DEC other regs */
+        }
+        break;
+
+    default:
+        /* TODO */
+        break;
+    }
+    break;
+
+case 0x1:
+    /* LD r[y], r[z] (+HALT) */
+    break;
+
+case 0x2:
+    /* ALU[y] A, r[z] */
+    break;
+
+case 0x3:
+    /* JP/CALL/RET/PUSH/POP/... */
+    break;
+}
+	
+    /*
+    case 0x00:      //NOP
         break;
     case 0x3c:      //INC A
         A++;
@@ -64,6 +109,7 @@ int main(int argc, char *argv[])
     case 0xEF:      //RST 0x00
         printf("%02X",A);
         break;
+    */
     default:
         printf("unknown opcode %02X at %04X\n", ram[PC-1], PC-1);
         return 1;
