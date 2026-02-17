@@ -13,6 +13,7 @@ uint16_t HL,BC,DE,PC,SP;
 
 int main(int argc, char *argv[])
 {
+   
     if (argc < 2) {
 	printf("usage: sim80 file.bin\n");
 	return 1;
@@ -28,6 +29,10 @@ int main(int argc, char *argv[])
     fclose(fp);
 
     printf("loaded %zu bytes\n", size);
+
+    uint8_t lo;
+    uint8_t hi;
+    uint16_t nn; 
 
     PC = 0;
     while (1) {
@@ -56,11 +61,17 @@ int main(int argc, char *argv[])
         printf("A=%X BC=%X DE=%X HL=%X PC=%X SP=%X\n",A,BC,DE,HL,PC,SP);
 	    return 0;
     case 0xc2:      //JP NZ nn
-        {uint8_t lo = ram[PC++];
-        uint8_t hi = ram[PC++];
-        uint16_t nn = (uint16_t)lo | ((uint16_t)hi << 8);
+        lo = ram[PC++];
+        hi = ram[PC++];
+        nn = (uint16_t)lo | ((uint16_t)hi << 8);
         if (Z == 0) PC = nn;
-        break;}
+        break;
+    case 0xc3:      //JP nn
+        lo = ram[PC++];
+        hi = ram[PC++];
+        nn = (uint16_t)lo | ((uint16_t)hi << 8);
+        PC = nn;
+        break;
     case 0xEF:      //RST 0x00
         printf("%02X",A);
         break;
