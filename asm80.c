@@ -111,6 +111,7 @@ static void gen_sbc(void);
 static void gen_push(void);
 static void gen_pop(void);
 static void gen_rst(void);
+static void gen_bit(void);
 static void gen_code1(char *op);
 static void gen_op1(unsigned int v, char *op);
 static void gettoken(void);
@@ -474,6 +475,8 @@ static void gen_code1(char *op)
 	gen_pop();
     } else if (eqv(op, "RST")) {
 	gen_rst();
+    } else if (eqv(op, "BIT")) {
+	gen_bit();
     } else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    printf("%04X  ", INDEX);
@@ -2061,6 +2064,83 @@ static void gen_rst(void)
     } else
 	error("RST operation", tok.buf);
 
+}
+
+// BIT groupe  
+static void gen_bit(void)
+{
+    char str[128];
+    int bit;
+
+    gettoken();  // bit number
+
+    if (!(tok.type == INTEGER || tok.type == HEXNUM)) {
+        error("BIT operation expected bit number", tok.buf);
+        return;
+    }
+
+    bit = (int)strtol(tok.buf, NULL, 0);
+    if (bit < 0 || bit > 7) {
+        error("BIT operation bit number out of range (0-7)", tok.buf);
+        return;
+    }
+
+    gettoken();  // comma
+    if (tok.type != COMMA) {
+        error("BIT operation expected comma", tok.buf);
+        return;
+    }
+
+    gettoken();  // operand: reg or (HL)
+    if (tok.type == SYMBOL) {
+        // BIT b,r  => CB (0x40 + (b<<3) + rcode)
+        unsigned char op = 0;
+
+        if (eqv(tok.buf, "B")) {
+            op = 0x40 + (bit << 3) + 0;
+        } else if (eqv(tok.buf, "C")) {
+            op = 0x40 + (bit << 3) + 1;
+        } else if (eqv(tok.buf, "D")) {
+            op = 0x40 + (bit << 3) + 2;
+        } else if (eqv(tok.buf, "E")) {
+            op = 0x40 + (bit << 3) + 3;
+        } else if (eqv(tok.buf, "H")) {
+            op = 0x40 + (bit << 3) + 4;
+        } else if (eqv(tok.buf, "L")) {
+            op = 0x40 + (bit << 3) + 5;
+        } else if (eqv(tok.buf, "A")) {
+            op = 0x40 + (bit << 3) + 7;
+        } else {
+            error("BIT operation expected register A/B/C/D/E/H/L", tok.buf);
+            return;
+        }
+
+        // debug string
+        sprintf(str, "BIT %d,%s", bit, tok.buf);
+
+        // emit
+        gen_op2(0xCB,op, str);
+
+    } else if (tok.type == LPAREN) {
+        // BIT b,(HL) => CB (0x40 + (b<<3) + 6)
+        gettoken();
+        if (!eqv(tok.buf, "HL")) {
+            error("BIT operation expected (HL)", tok.buf);
+            return;
+        }
+        gettoken();  // )
+        if (tok.type != RPAREN) {
+            error("BIT operation expected right paren", tok.buf);
+            return;
+        }
+
+        sprintf(str, "BIT %d,(HL)", bit);
+        gen_op2(0xCB,(unsigned char)(0x40 + (bit << 3) + 6), str);
+
+    } else {
+        error("BIT operation expected register or (HL)", tok.buf);
+        return;
+    }
 }
 
 

@@ -2,7 +2,7 @@
 
 
 
-#define BUFSIZE 256
+#define BUFSIZE 64
 #define EOL		'\n'
 #define TAB		'\t'
 #define SPACE	' '

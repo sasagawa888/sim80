@@ -1,4 +1,17 @@
 ABCD:
+    BIT 0,A
+    BIT 1,B
+    BIT 2,C
+    BIT 3,D
+    BIT 4,E
+    BIT 5,H
+    BIT 6,L
+    BIT 7,A
+    BIT 0,(HL)
+    BIT 3,(HL)
+    BIT 7,(HL)
+    BIT 0,B
+    BIT 7,B
     LD (HL),A
     LD (HL),B 
     LD (HL),C
