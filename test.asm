@@ -1,4 +1,10 @@
 ABCD:
+    RES 0,B      ; CB 80
+    RES 0,(HL)   ; CB 86
+    RES 0,A      ; CB 87
+    RES 7,B      ; CB B8
+    RES 7,(HL)   ; CB BE
+    RES 7,A      ; CB BF
     SET 0,B      ; CB C0
     SET 0,A      ; CB C7
     SET 0,(HL)   ; CB C6

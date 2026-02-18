@@ -64,7 +64,6 @@ All other Z80 instructions are currently unsupported.
 
 ## 5. Bit Operations (CB Prefix)
 
-- RES b,r
 
 ---
 

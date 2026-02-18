@@ -113,6 +113,7 @@ static void gen_pop(void);
 static void gen_rst(void);
 static void gen_bit(void);
 static void gen_set(void);
+static void gen_res(void);
 static void gen_code1(char *op);
 static void gen_op1(unsigned int v, char *op);
 static void gettoken(void);
@@ -480,6 +481,8 @@ static void gen_code1(char *op)
 	gen_bit();
     } else if (eqv(op, "SET")) {
 	gen_set();
+    } else if (eqv(op, "RES")) {
+	gen_res();
     } else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    printf("%04X  ", INDEX);
@@ -2220,6 +2223,77 @@ static void gen_set(void)
     }
 }
 
+// RES groupe  (IX/IY variants are omitted; you will handwrite them)
+static void gen_res(void)
+{
+    char str[128];
+    int bit;
+
+    gettoken();  // bit number
+
+    if (!(tok.type == INTEGER || tok.type == HEXNUM)) {
+        error("RES operation expected bit number", tok.buf);
+        return;
+    }
+
+    bit = (int)strtol(tok.buf, NULL, 0);
+    if (bit < 0 || bit > 7) {
+        error("RES operation bit number out of range (0-7)", tok.buf);
+        return;
+    }
+
+    gettoken();  // comma
+    if (tok.type != COMMA) {
+        error("RES operation expected comma", tok.buf);
+        return;
+    }
+
+    gettoken();  // operand: reg or (HL)
+    if (tok.type == SYMBOL) {
+        unsigned char op = 0;
+
+        if (eqv(tok.buf, "B")) {
+            op = 0x80 + (bit << 3) + 0;
+        } else if (eqv(tok.buf, "C")) {
+            op = 0x80 + (bit << 3) + 1;
+        } else if (eqv(tok.buf, "D")) {
+            op = 0x80 + (bit << 3) + 2;
+        } else if (eqv(tok.buf, "E")) {
+            op = 0x80 + (bit << 3) + 3;
+        } else if (eqv(tok.buf, "H")) {
+            op = 0x80 + (bit << 3) + 4;
+        } else if (eqv(tok.buf, "L")) {
+            op = 0x80 + (bit << 3) + 5;
+        } else if (eqv(tok.buf, "A")) {
+            op = 0x80 + (bit << 3) + 7;
+        } else {
+            error("RES operation expected register A/B/C/D/E/H/L", tok.buf);
+            return;
+        }
+
+        sprintf(str, "RES %d,%s", bit, tok.buf);
+        gen_op2(0xCB, op, str);
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+        if (!eqv(tok.buf, "HL")) {
+            error("RES operation expected (HL)", tok.buf);
+            return;
+        }
+        gettoken();  // )
+        if (tok.type != RPAREN) {
+            error("RES operation expected right paren", tok.buf);
+            return;
+        }
+
+        sprintf(str, "RES %d,(HL)", bit);
+        gen_op2(0xCB, (unsigned char)(0x80 + (bit << 3) + 6), str);
+
+    } else {
+        error("RES operation expected register or (HL)", tok.buf);
+        return;
+    }
+}
 
 
 static void emit8(unsigned int v)
