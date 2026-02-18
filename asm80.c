@@ -518,7 +518,7 @@ static void gen_code1(char *op)
 		// normal label
 		tok.flag = BACK;
 	    printf("%04X  ", INDEX);
-	    printf("%s:\n", op);
+	    printf("%s:\n", str);
 		} else {
 		// EQU
 		printf("%s",str);

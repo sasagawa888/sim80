@@ -37,7 +37,7 @@ ABCD:
     LD (HL),H
     LD (HL),L
     LD A,(LOOP)
-    LD A,LOOP
+    LD A,FOO1
     JR NZ,0X0077
     JR NZ,ABCD
     JR Z,0x0077
@@ -147,7 +147,7 @@ ABCD:
     LD A,(DE)
     LD A,(0x1234)
     LD A,(LOOP)
-    LD A,LOOP
+    LD A,FOO1
     DEC A
     DEC B
     DEC C
@@ -248,7 +248,7 @@ LOOP3:
 ;asdf
 ABCD1:
     LD A,(LOOP)
-    LD A,LOOP
+    LD A,FOO1
     JR NZ,0X0119
     JR NZ,ABCD1
     JR Z,0x0119
