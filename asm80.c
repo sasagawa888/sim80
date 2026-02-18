@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "asm80.h"
 
-#define version 0.1
+#define version 0.9
 
 FILE *input_stream;
 FILE *output_stream;
@@ -454,7 +454,17 @@ static void gen_code(void)
 
 static void gen_code1(char *op)
 {
-    if (eqv(op, "HALT")) {
+	int arg;
+	char str[128];
+
+	if(eqv(op,"DB")){
+		gettoken();
+		if(!(tok.type == INTEGER || tok.type == HEXNUM))
+			error("DB operand ",tok.buf);
+		arg = strtol(tok.buf, NULL, 0);
+		sprintf(str,"DB %s",tok.buf);
+		gen_op1(arg,str);
+	} else if (eqv(op, "HALT")) {
 	gen_op1(0x76, op);
     } else if (eqv(op, "NOP")) {
 	gen_op1(0x00, op);
@@ -500,13 +510,25 @@ static void gen_code1(char *op)
 	gen_set();
     } else if (eqv(op, "RES")) {
 	gen_res();
-    } else if (tok.type == LABEL) {
+    } else if (tok.type == LABEL) { 
 	if (pass == 2) {
+		strcpy(str,tok.buf);
+		gettoken();
+		if(!eqv(tok.buf,"EQU")){
+		// normal label
+		tok.flag = BACK;
 	    printf("%04X  ", INDEX);
 	    printf("%s:\n", op);
+		} else {
+		// EQU
+		printf("%s",str);
+		gettoken();
+	    printf("\t%s %s\n", "EQU",tok.buf);
+		}
 	}
-	return;
-    }
+	return; 
+    } else 
+		error("undefined operation",tok.buf);
 }
 
 // 1 bytes operation
