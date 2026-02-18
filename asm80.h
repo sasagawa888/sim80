@@ -9,7 +9,7 @@
 #define NUL		'\0'
 
 
-typedef enum toktype { LPAREN, RPAREN, COMMA, DOT, INTEGER, HEXNUM, 
+typedef enum toktype { LPAREN, RPAREN, COMMA, DOT, PLUS, MINUS, INTEGER, HEXNUM, 
     SYMBOL, LABEL, OTHER, FILEEND
 } toktype;
 typedef enum backtrack { GO, BACK } backtrack;

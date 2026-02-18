@@ -160,6 +160,18 @@ static void gettoken(void)
 	return;
     }
 
+	if (tok.ch == '+') {
+	tok.type = PLUS;
+	tok.ch = NUL;
+	return;
+    }
+
+	if (tok.ch == '-') {
+	tok.type = MINUS;
+	tok.ch = NUL;
+	return;
+    }
+
 
   skip:
     c = fgetc(input_stream);
@@ -195,6 +207,12 @@ static void gettoken(void)
 	break;
     case '.':
 	tok.type = DOT;
+	break;
+	case '+':
+	tok.type = PLUS;
+	break;
+	case '-':
+	tok.type = MINUS;
 	break;
     case EOF:
 	tok.type = FILEEND;
