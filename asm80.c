@@ -112,6 +112,7 @@ static void gen_push(void);
 static void gen_pop(void);
 static void gen_rst(void);
 static void gen_bit(void);
+static void gen_set(void);
 static void gen_code1(char *op);
 static void gen_op1(unsigned int v, char *op);
 static void gettoken(void);
@@ -477,6 +478,8 @@ static void gen_code1(char *op)
 	gen_rst();
     } else if (eqv(op, "BIT")) {
 	gen_bit();
+    } else if (eqv(op, "SET")) {
+	gen_set();
     } else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    printf("%04X  ", INDEX);
@@ -2142,6 +2145,81 @@ static void gen_bit(void)
         return;
     }
 }
+
+// SET groupe  (IX/IY variants are omitted; you will handwrite them)
+static void gen_set(void)
+{
+    char str[128];
+    int bit;
+
+    gettoken();  // bit number
+
+    if (!(tok.type == INTEGER || tok.type == HEXNUM)) {
+        error("SET operation expected bit number", tok.buf);
+        return;
+    }
+
+    bit = (int)strtol(tok.buf, NULL, 0);
+    if (bit < 0 || bit > 7) {
+        error("SET operation bit number out of range (0-7)", tok.buf);
+        return;
+    }
+
+    gettoken();  // comma
+    if (tok.type != COMMA) {
+        error("SET operation expected comma", tok.buf);
+        return;
+    }
+
+    gettoken();  // operand: reg or (HL)
+    if (tok.type == SYMBOL) {
+        // SET b,r  => CB (0xC0 + (b<<3) + rcode)
+        unsigned char op = 0;
+
+        if (eqv(tok.buf, "B")) {
+            op = 0xC0 + (bit << 3) + 0;
+        } else if (eqv(tok.buf, "C")) {
+            op = 0xC0 + (bit << 3) + 1;
+        } else if (eqv(tok.buf, "D")) {
+            op = 0xC0 + (bit << 3) + 2;
+        } else if (eqv(tok.buf, "E")) {
+            op = 0xC0 + (bit << 3) + 3;
+        } else if (eqv(tok.buf, "H")) {
+            op = 0xC0 + (bit << 3) + 4;
+        } else if (eqv(tok.buf, "L")) {
+            op = 0xC0 + (bit << 3) + 5;
+        } else if (eqv(tok.buf, "A")) {
+            op = 0xC0 + (bit << 3) + 7;
+        } else {
+            error("SET operation expected register A/B/C/D/E/H/L", tok.buf);
+            return;
+        }
+
+        sprintf(str, "SET %d,%s", bit, tok.buf);
+        gen_op2(0xCB, op, str);
+
+    } else if (tok.type == LPAREN) {
+        // SET b,(HL) => CB (0xC0 + (b<<3) + 6)
+        gettoken();
+        if (!eqv(tok.buf, "HL")) {
+            error("SET operation expected (HL)", tok.buf);
+            return;
+        }
+        gettoken();  // )
+        if (tok.type != RPAREN) {
+            error("SET operation expected right paren", tok.buf);
+            return;
+        }
+
+        sprintf(str, "SET %d,(HL)", bit);
+        gen_op2(0xCB, (unsigned char)(0xC0 + (bit << 3) + 6), str);
+
+    } else {
+        error("SET operation expected register or (HL)", tok.buf);
+        return;
+    }
+}
+
 
 
 static void emit8(unsigned int v)

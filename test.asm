@@ -1,4 +1,10 @@
 ABCD:
+    SET 0,B      ; CB C0
+    SET 0,A      ; CB C7
+    SET 0,(HL)   ; CB C6
+    SET 7,B      ; CB F8
+    SET 7,A      ; CB FF
+    SET 7,(HL)   ; CB FE
     BIT 0,A
     BIT 1,B
     BIT 2,C
