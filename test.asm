@@ -1,3 +1,7 @@
+FOO1:   EQU 0x12
+BOO:    EQU 123
+    LD A,FOO1
+    LD A,BOO
 ABCD:
     RES 0,B      ; CB 80
     RES 0,(HL)   ; CB 86
