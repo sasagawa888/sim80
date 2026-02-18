@@ -121,3 +121,48 @@ Future implementation may prioritize:
 4. ED block instructions
 5. Full Z80 coverage
 
+# plm80  
+ゲーリーキルドール氏が設計したPL/Mの互換クロスコンパイラ
+
+コード例
+
+```
+ FIND: PROCEDURE(PA,PB) BYTE;
+    DECLARE (PA,PB) BYTE;
+    /* 文字列SCRATCHからPAで始まりPBで終わる文字列を探す */
+    DECLARE J ADDRESS,
+        (K, MATCH) BYTE;
+    J = BACK ;
+    MATCH = FALSE;
+        DO WHILE NOT MATCH AND (MAXM > J);
+        LAST,J = J + 1; /* Jから検索を開始 */
+        K = PA ; /* 文字列がKで一致するか */
+            DO WHILE SCRATCH(K) = MEMORY(LAST) AND
+                NOT (MATCH := K = PB);
+            /* さらに1文字が一致 */
+            K = K + 1; LAST = LAST + 1;
+            END;
+        END;
+    IF MATCH THEN /* 格納先を移動 */
+        DO; LAST = LAST - 1; CALL MOVER;
+        END;
+    RETURN MATCH;
+    END FIND;
+
+```
+
+## plm80
+Z80アセンブラを出力する。
+トークナイザーはLispのものを流用する。
+構文木はSにする。リストを応用する。
+
+例 1+2*3 -> (+ 1 (* 2 3))
+演算子は重みをもち適切にS式パースされる。
+
+S式をもとにZ80アセンブルソースを出力する。これはasm80にて
+機械語に変換される。
+
+
+言語仕様
+
+http://www.cpm.z80.de/randyfiles/plm/MCS-8_PLMprogGuide1973.pdf
