@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define version 0.1
+#define version 0.9
 
 uint8_t ram[0x10000];
 
