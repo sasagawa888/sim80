@@ -619,52 +619,72 @@ static void gen_ld(void)
 	error("LD operand ", tok.buf);
 }
 
-static void gen_ldidx(void)
+static int eval_imm_or_sym(int *out_value)
 {
-	char nn[10], str[64];
+    if (tok.type == INTEGER || tok.type == HEXNUM) {
+        char *endp = NULL;
+        long v = strtol(tok.buf, &endp, 0);
+        if (endp == tok.buf) return 0;
+        *out_value = (int)v;
+        return 1;
+    }
+    if (tok.type == SYMBOL) {
+        if (pass == 2) {
+            int si = sym_find(tok.buf);
+            if (si < 0) return 0;
+            *out_value = labels[si].addr;
+        } else {
+            *out_value = 0; // pass1 は仮
+        }
+        return 1;
+    }
+    return 0;
+}
+
+// 期待：現在 tok.buf は "IX" または "IY"（LPARENの直後に読んだ状態）
+// この関数は +/-, nn を読み、disp8を作って gen_op4 まで行う。
+// RPAREN は呼び出し元(gen_ldaなど)が読む設計のままにする。
+static void gen_ldidx(unsigned char prefix,
+                      unsigned char opcode,
+                      const char *mnem_lhs,   // "A" とか "(...)"
+                      const char *idxname,    // "IX" or "IY"
+                      const char *mnem_rhs_fmt) // 右側の書式: "(%s%c%s)" のように使う
+{
+    char nn[32], str[64];
     int sign = +1;
-    int signed_disp;		// -128..127
+    int arg = 0;
+    int signed_disp;
     unsigned char disp8;
-	int arg, idx;
-    arg = 0;
-	gettoken();		//+ -
-	    if (tok.type == PLUS) {
-		sign = +1;
-	    } else if (tok.type == MINUS) {
-		sign = -1;
-	    } else {
-		error("expected + or -", tok.buf);
-	    }
-	    gettoken();		//nn
-	    strncpy(nn, tok.buf, sizeof(nn) - 1);
-	    nn[sizeof(nn) - 1] = '\0';
 
-	    if (tok.type == INTEGER || tok.type == HEXNUM) {
-		char *endp = NULL;
-		long v = strtol(tok.buf, &endp, 0);
-		if (endp == tok.buf) {
-		    error("bad number", tok.buf);
-		}
-		arg = (int) v;
-	    } else {
-		if (pass == 2) {
-		    idx = sym_find(tok.buf);
-		    if (idx < 0)
-			error("undefined symbol", tok.buf);
-		    arg = labels[idx].addr;
-		} else {
-		    arg = 0;
-		}
-	    }
+    // + / -
+    gettoken();
+    if (tok.type == PLUS) sign = +1;
+    else if (tok.type == MINUS) sign = -1;
+    else error("expected + or -", tok.buf);
 
-	    signed_disp = sign * arg;
-	    if (signed_disp < -128 || signed_disp > 127) {
-		error("IX displacement out of range", nn);
-	    }
-	    disp8 = (unsigned char) (signed_disp & 0xFF);
-	    snprintf(str, sizeof(str), "LD A,(IX%c%s)",
-		     (sign > 0 ? '+' : '-'), nn);
-	    gen_op4(0xDD, 0x7E, disp8, str);
+    // nn
+    gettoken();
+    strncpy(nn, tok.buf, sizeof(nn) - 1);
+    nn[sizeof(nn) - 1] = '\0';
+
+    if (!eval_imm_or_sym(&arg)) {
+        error("bad displacement", tok.buf);
+    }
+
+    signed_disp = sign * arg;
+    if (signed_disp < -128 || signed_disp > 127) {
+        error("index displacement out of range", nn);
+    }
+    disp8 = (unsigned char)(signed_disp & 0xFF);
+
+    // 文字列（例: "LD A,(IX+1)" / "LD (IY-0x10),A" など）
+    // rhs 部分をフォーマットで作れるようにしておく
+    char rhs[48];
+    snprintf(rhs, sizeof(rhs), mnem_rhs_fmt, idxname, (sign > 0 ? '+' : '-'), nn);
+
+    snprintf(str, sizeof(str), "LD %s,%s", mnem_lhs, rhs);
+
+    gen_op4(prefix, opcode, disp8, str);
 }
 
 // LD A,~
@@ -747,7 +767,18 @@ static void gen_lda(void)
 	    gen_op3(0x3a, arg, str);
 	} else {
 	    // IX+nn IY+nn
-	    gen_ldidx();
+	     unsigned char prefix;
+    const char *idxname;
+
+    if (eqv(tok.buf, "IX")) { prefix = 0xDD; idxname = "IX"; }
+    else if (eqv(tok.buf, "IY")) { prefix = 0xFD; idxname = "IY"; }
+    else {
+        error("expected IX or IY", tok.buf);
+        return;
+    }
+
+    // LD A,(IX+d) は opcode 0x7E（= LD A,(HL) のopcodeをIX/IY化）
+    gen_ldidx(prefix, 0x7E, "A", idxname, "(%s%c%s)");
 	}
 
 	gettoken();
