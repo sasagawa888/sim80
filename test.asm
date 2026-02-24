@@ -1,5 +1,11 @@
 FOO1:   EQU 0x12
     LD A,(IX+1)
+    LD B,(IX+1)
+    LD C,(IX+1)
+    LD D,(IX-1)
+    LD E,(IX+1)
+    LD H,(IX+1)
+    LD L,(IX+1)
     LD (IX-0x10),A
     LD (IX+0x11),B 
     LD (IX+0x12),C
@@ -73,9 +79,9 @@ ABCD:
     JR Z,ABCD
     JR NC,0x0077
     JR NC,ABCD 
-    JR C,0x0031
+    JR C,0x0051
     JR C,ABCD
-    JR 0x0031
+    JR 0x0051
     JR ABCD
     NOP
     LD A,A
@@ -278,14 +284,14 @@ LOOP3:
 ABCD1:
     LD A,(LOOP)
     LD A,FOO1
-    JR NZ,0X0139
+    JR NZ,0X0159
     JR NZ,ABCD1
-    JR Z,0x0139
+    JR Z,0x0159
     JR Z,ABCD1
-    JR NC,0x0139
+    JR NC,0x0159
     JR NC,ABCD1 
-    JR C,0x0149
+    JR C,0x0159
     JR C,ABCD1
-    JR 0x0143
+    JR 0x0153
     JR ABCD1
 
