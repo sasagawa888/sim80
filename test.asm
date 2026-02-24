@@ -5,7 +5,7 @@ FOO1:   EQU 0x12
     LD D,(IX-1)
     LD E,(IX+1)
     LD H,(IX+1)
-    LD L,(IX+1)
+    LD L,(IX+FOO1)
     LD (IX-0x10),A
     LD (IX+0x11),B 
     LD (IX+0x12),C
