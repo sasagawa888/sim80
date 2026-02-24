@@ -1,4 +1,32 @@
 FOO1:   EQU 0x12
+    LD (IX-0x10),A
+    LD (IX+0x11),B 
+    LD (IX+0x12),C
+    LD (IX+0x13),D
+    LD (IX+0x14),E
+    LD (IX+0x15),H
+    LD (IX+0x16),L
+    LD (IX+FOO1),A
+    LD (IX+FOO1),B 
+    LD (IX+FOO1),C
+    LD (IX+FOO1),D
+    LD (IX+FOO1),E
+    LD (IX+FOO1),H
+    LD (IX+FOO1),L
+    LD (IY-0x10),A
+    LD (IY+0x11),B 
+    LD (IY+0x12),C
+    LD (IY+0x13),D
+    LD (IY+0x14),E
+    LD (IY+0x15),H
+    LD (IY+0x16),L
+    LD (IY+FOO1),A
+    LD (IY+FOO1),B 
+    LD (IY+FOO1),C
+    LD (IY+FOO1),D
+    LD (IY+FOO1),E
+    LD (IY+FOO1),H
+    LD (IY+FOO1),L
 BOO:    EQU 123
     LD A,FOO1
     LD A,BOO
@@ -44,9 +72,9 @@ ABCD:
     JR Z,ABCD
     JR NC,0x0077
     JR NC,ABCD 
-    JR C,0x0011
+    JR C,0x0031
     JR C,ABCD
-    JR 0x0011
+    JR 0x0031
     JR ABCD
     NOP
     LD A,A
@@ -249,14 +277,14 @@ LOOP3:
 ABCD1:
     LD A,(LOOP)
     LD A,FOO1
-    JR NZ,0X0119
+    JR NZ,0X0139
     JR NZ,ABCD1
-    JR Z,0x0119
+    JR Z,0x0139
     JR Z,ABCD1
-    JR NC,0x0119
+    JR NC,0x0139
     JR NC,ABCD1 
-    JR C,0x0119
+    JR C,0x0139
     JR C,ABCD1
-    JR 0x0119
+    JR 0x0143
     JR ABCD1
 

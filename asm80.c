@@ -94,6 +94,8 @@ static void gen_lde(void);
 static void gen_ldh(void);
 static void gen_ldl(void);
 static void gen_ldhl(void);
+static void gen_ldix(void);
+static void gen_ldiy(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
@@ -225,7 +227,7 @@ static void gettoken(void)
 	    tok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != ',') && (c != '.') && (c != EOL)) {
+		   && (c != ')') && (c != ',') && (c != '.') && (c != '+')  &&  (c != '-')  && (c != EOL)) {
 		tok.buf[pos++] = c;
 	    }
 	    if (c == EOL)
@@ -565,6 +567,20 @@ static void gen_op3(unsigned int v, unsigned int arg, char *op)
 	printf("\t%s\n", op);
 }
 
+// extended 3 bytes operation
+static void gen_op4(unsigned int v1, unsigned int v2, unsigned int arg, char *op)
+{
+    if (pass == 2)
+	printf("%04X  ", INDEX);
+    emit8(v1);
+	emit8(v2);
+    emit8(arg);
+    if (pass == 2)
+	printf("\t%s\n", op);
+}
+
+
+
 // LD groupe
 static void gen_ld(void)
 {
@@ -584,13 +600,19 @@ static void gen_ld(void)
     } else if (eqv(tok.buf, "L")) {
 	gen_ldl();
     } else if (tok.type == LPAREN) {
-	gettoken();		//HL
-	if (!eqv(tok.buf, "HL"))
-	    error("LD operation ", tok.buf);
-	gettoken();		//)
-	if (tok.type != RPAREN)
+	gettoken();
+	if (eqv(tok.buf, "HL")){
+		gettoken();		//)
+		if (tok.type != RPAREN)
 	    error("LD operation expected )", tok.buf);
-	gen_ldhl();
+		gen_ldhl();
+	}else if(eqv(tok.buf, "IX")){
+		gen_ldix();
+	}else if(eqv(tok.buf, "IY")){
+		gen_ldiy();
+	}
+	
+	
     } else
 	error("LD operand ", tok.buf);
 }
@@ -1119,6 +1141,188 @@ static void gen_ldhl(void)
 
     default:
 	error("LD operand", tok.buf);
+    }
+}
+
+// LD (IX+nn),~
+static void gen_ldix(void)
+{
+    int arg = 0;            
+    int idx;
+    int sign = +1;               // +1 or -1
+    int signed_disp;             // -128..127
+    unsigned char disp8;        
+    char nn[64], str[256];
+
+    gettoken();                  // +/-
+    if (tok.type == PLUS) {
+        sign = +1;
+    } else if (tok.type == MINUS) {
+        sign = -1;
+    } else {
+        error("expected + or -", tok.buf);
+    }
+
+    gettoken();                  // src operand (nn)
+    strncpy(nn, tok.buf, sizeof(nn) - 1);
+    nn[sizeof(nn) - 1] = '\0';
+
+    if (tok.type == INTEGER || tok.type == HEXNUM) {
+        char *endp = NULL;
+        long v = strtol(tok.buf, &endp, 0);
+        if (endp == tok.buf) {
+            error("bad number", tok.buf);
+        }
+        arg = (int)v;
+    } else {
+        if (pass == 2) {
+            idx = sym_find(tok.buf);
+            if (idx < 0)
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;  
+        } else {
+            arg = 0;
+        }
+    }
+
+    signed_disp = sign * arg;
+    if (signed_disp < -128 || signed_disp > 127) {
+        error("IX displacement out of range", nn);
+    }
+    disp8 = (unsigned char)(signed_disp & 0xFF);
+
+    gettoken();                  // )
+    gettoken();                  // ,
+    gettoken();                  // Register
+
+    switch (tok.type) {
+    case SYMBOL:
+        if (eqv(tok.buf, "A")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),A", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x77, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "B")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),B", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x70, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "C")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),C", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x71, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "D")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),D", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x72, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "E")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),E", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x73, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "H")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),H", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x74, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "L")) {
+            snprintf(str, sizeof(str), "LD (IX%c%s),L", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xDD, 0x75, disp8, str);
+            return;
+        } else {
+            error("LD operand", tok.buf);
+        }
+        break;
+
+    default:
+        error("LD operand", tok.buf);
+    }
+}
+
+// LD (IY+nn),~
+static void gen_ldiy(void)
+{
+    int arg = 0;
+    int idx;
+    int sign = +1;
+    int signed_disp;
+    unsigned char disp8;
+    char nn[64], str[256];
+
+    gettoken();                  // +/-
+    if (tok.type == PLUS) {
+        sign = +1;
+    } else if (tok.type == MINUS) {
+        sign = -1;
+    } else {
+        error("expected + or -", tok.buf);
+    }
+
+    gettoken();                  // src operand (nn)
+    strncpy(nn, tok.buf, sizeof(nn) - 1);
+    nn[sizeof(nn) - 1] = '\0';
+
+    if (tok.type == INTEGER || tok.type == HEXNUM) {
+        char *endp = NULL;
+        long v = strtol(tok.buf, &endp, 0);
+        if (endp == tok.buf) {
+            error("bad number", tok.buf);
+        }
+        arg = (int)v;
+    } else {
+        if (pass == 2) {
+            idx = sym_find(tok.buf);
+            if (idx < 0)
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;   
+        } else {
+            arg = 0;                
+        }
+    }
+
+    signed_disp = sign * arg;
+    if (signed_disp < -128 || signed_disp > 127) {
+        error("IY displacement out of range", nn);
+    }
+    disp8 = (unsigned char)(signed_disp & 0xFF);
+
+    gettoken();                  // )
+    gettoken();                  // ,
+    gettoken();                  // Register
+
+    switch (tok.type) {
+    case SYMBOL:
+        if (eqv(tok.buf, "A")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),A", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x77, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "B")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),B", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x70, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "C")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),C", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x71, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "D")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),D", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x72, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "E")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),E", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x73, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "H")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),H", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x74, disp8, str);
+            return;
+        } else if (eqv(tok.buf, "L")) {
+            snprintf(str, sizeof(str), "LD (IY%c%s),L", (sign > 0 ? '+' : '-'), nn);
+            gen_op4(0xFD, 0x75, disp8, str);
+            return;
+        } else {
+            error("LD operand", tok.buf);
+        }
+        break;
+
+    default:
+        error("LD operand", tok.buf);
     }
 }
 
