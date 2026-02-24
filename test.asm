@@ -1,4 +1,5 @@
 FOO1:   EQU 0x12
+    LD A,(IX+1)
     LD (IX-0x10),A
     LD (IX+0x11),B 
     LD (IX+0x12),C
@@ -283,7 +284,7 @@ ABCD1:
     JR Z,ABCD1
     JR NC,0x0139
     JR NC,ABCD1 
-    JR C,0x0139
+    JR C,0x0149
     JR C,ABCD1
     JR 0x0143
     JR ABCD1
