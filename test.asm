@@ -294,4 +294,24 @@ ABCD1:
     JR C,ABCD1
     JR 0x0153
     JR ABCD1
-
+BAR:    EQU 0x30
+    ADD A,(IX+BAR)
+    ADD A,(IY+0x21)
+    ADC A,(IX+BAR)
+    ADC A,(IY+0x21)
+    SBC A,(IX+BAR)
+    SBC A,(IY+0x21)
+    SUB (IX+BAR)
+    SUB (IY+0x21)
+    AND (IX+BAR)
+    AND (IY+0x21)
+    OR (IX+BAR)
+    OR (IY+0x21)
+    XOR (IX+BAR)
+    XOR (IY+0x21)
+    CP (IX+BAR)
+    CP (IY+0x21)
+    DEC (IX+BAR)
+    DEC (IY+0x21)
+    INC (IX+BAR)
+    INC (IY+0x21)

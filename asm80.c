@@ -118,6 +118,8 @@ static void gen_set(void);
 static void gen_res(void);
 static void gen_code1(char *op);
 static void gen_op1(unsigned int v, char *op);
+static void gen_idx(unsigned char prefix, unsigned char opcode,
+		    const char *mnem_rhs_fmt);
 static void gettoken(void);
 static void emit8(unsigned int v);
 static void emit16(unsigned int v);
@@ -622,21 +624,23 @@ static void gen_ld(void)
 static int eval_imm_or_sym(int *out_value)
 {
     if (tok.type == INTEGER || tok.type == HEXNUM) {
-        char *endp = NULL;
-        long v = strtol(tok.buf, &endp, 0);
-        if (endp == tok.buf) return 0;
-        *out_value = (int)v;
-        return 1;
+	char *endp = NULL;
+	long v = strtol(tok.buf, &endp, 0);
+	if (endp == tok.buf)
+	    return 0;
+	*out_value = (int) v;
+	return 1;
     }
     if (tok.type == SYMBOL) {
-        if (pass == 2) {
-            int si = sym_find(tok.buf);
-            if (si < 0) return 0;
-            *out_value = labels[si].addr;
-        } else {
-            *out_value = 0; // pass1 は仮
-        }
-        return 1;
+	if (pass == 2) {
+	    int si = sym_find(tok.buf);
+	    if (si < 0)
+		return 0;
+	    *out_value = labels[si].addr;
+	} else {
+	    *out_value = 0;	// pass1 は仮
+	}
+	return 1;
     }
     return 0;
 }
@@ -644,11 +648,9 @@ static int eval_imm_or_sym(int *out_value)
 // 期待：現在 tok.buf は "IX" または "IY"（LPARENの直後に読んだ状態）
 // この関数は +/-, nn を読み、disp8を作って gen_op4 まで行う。
 // RPAREN は呼び出し元(gen_ldaなど)が読む設計のままにする。
-static void gen_ldidx(unsigned char prefix,
-                      unsigned char opcode,
-                      const char *mnem_lhs,   // "A" とか "(...)"
-                      const char *idxname,    // "IX" or "IY"
-                      const char *mnem_rhs_fmt) // 右側の書式: "(%s%c%s)" のように使う
+static void gen_ldidx(unsigned char prefix, unsigned char opcode, const char *mnem_lhs,	// "A" とか "(...)"
+		      const char *idxname,	// "IX" or "IY"
+		      const char *mnem_rhs_fmt)	// 右側の書式: "(%s%c%s)" のように使う
 {
     char nn[32], str[64];
     int sign = +1;
@@ -658,9 +660,12 @@ static void gen_ldidx(unsigned char prefix,
 
     // + / -
     gettoken();
-    if (tok.type == PLUS) sign = +1;
-    else if (tok.type == MINUS) sign = -1;
-    else error("expected + or -", tok.buf);
+    if (tok.type == PLUS)
+	sign = +1;
+    else if (tok.type == MINUS)
+	sign = -1;
+    else
+	error("expected + or -", tok.buf);
 
     // nn
     gettoken();
@@ -668,19 +673,20 @@ static void gen_ldidx(unsigned char prefix,
     nn[sizeof(nn) - 1] = '\0';
 
     if (!eval_imm_or_sym(&arg)) {
-        error("bad displacement", tok.buf);
+	error("bad displacement", tok.buf);
     }
 
     signed_disp = sign * arg;
     if (signed_disp < -128 || signed_disp > 127) {
-        error("index displacement out of range", nn);
+	error("index displacement out of range", nn);
     }
-    disp8 = (unsigned char)(signed_disp & 0xFF);
+    disp8 = (unsigned char) (signed_disp & 0xFF);
 
     // 文字列（例: "LD A,(IX+1)" / "LD (IY-0x10),A" など）
     // rhs 部分をフォーマットで作れるようにしておく
     char rhs[48];
-    snprintf(rhs, sizeof(rhs), mnem_rhs_fmt, idxname, (sign > 0 ? '+' : '-'), nn);
+    snprintf(rhs, sizeof(rhs), mnem_rhs_fmt, idxname,
+	     (sign > 0 ? '+' : '-'), nn);
 
     snprintf(str, sizeof(str), "LD %s,%s", mnem_lhs, rhs);
 
@@ -738,58 +744,59 @@ static void gen_lda(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x7E, "LD A,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        gen_op1(0x0A, "LD A,(BC)");
-    } else if (eqv(tok.buf, "DE")) {
-        gen_op1(0x1A, "LD A,(DE)");
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        arg = strtol(tok.buf, NULL, 0);
-        strcpy(str, "LD A,(");
-        strcat(str, tok.buf);
-        strcat(str, ")");
-        gen_op3(0x3A, arg, str);          // LD A,(nn)
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        if (pass == 2) {
-            idx = sym_find(tok.buf);
-            if (idx < 0) {
-                error("undefined symbol", tok.buf);
-            }
-            arg = labels[idx].addr;
-        } else {
-            arg = 0;
-        }
-        strcpy(str, "LD A,(");
-        strcat(str, tok.buf);
-        strcat(str, ")");
-        gen_op3(0x3A, arg, str);          // LD A,(nn) where nn is label address
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x7E, "LD A,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    gen_op1(0x0A, "LD A,(BC)");
+	} else if (eqv(tok.buf, "DE")) {
+	    gen_op1(0x1A, "LD A,(DE)");
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    arg = strtol(tok.buf, NULL, 0);
+	    strcpy(str, "LD A,(");
+	    strcat(str, tok.buf);
+	    strcat(str, ")");
+	    gen_op3(0x3A, arg, str);	// LD A,(nn)
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    if (pass == 2) {
+		idx = sym_find(tok.buf);
+		if (idx < 0) {
+		    error("undefined symbol", tok.buf);
+		}
+		arg = labels[idx].addr;
+	    } else {
+		arg = 0;
+	    }
+	    strcpy(str, "LD A,(");
+	    strcat(str, tok.buf);
+	    strcat(str, ")");
+	    gen_op3(0x3A, arg, str);	// LD A,(nn) where nn is label address
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) {
-            prefix = 0xDD;
-            idxname = "IX";
-        } else if (eqv(tok.buf, "IY")) {
-            prefix = 0xFD;
-            idxname = "IY";
-        } else {
-            error("expected IX or IY", tok.buf);
-            return;
-        }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD A,(IX+d) / LD A,(IY+d)  opcode = 0x7E (= LD A,(HL))
-        gen_ldidx(prefix, 0x7E, "A", idxname, "(%s%c%s)");
-    }
+	    // LD A,(IX+d) / LD A,(IY+d)  opcode = 0x7E (= LD A,(HL))
+	    gen_ldidx(prefix, 0x7E, "A", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
     default:
 	error("LD operand", tok.buf);
     }
@@ -845,39 +852,47 @@ static void gen_ldb(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x46, "LD B,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD B,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD B,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD B,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD B,(label) not supported on Z80", tok.buf);
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x46, "LD B,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD B,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD B,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD B,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD B,(label) not supported on Z80", tok.buf);
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) { prefix = 0xDD; idxname = "IX"; }
-        else if (eqv(tok.buf, "IY")) { prefix = 0xFD; idxname = "IY"; }
-        else { error("expected IX or IY", tok.buf); return; }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD B,(IX+d)  opcode = 0x46 (= LD B,(HL))
-        gen_ldidx(prefix, 0x46, "B", idxname, "(%s%c%s)");
+	    // LD B,(IX+d)  opcode = 0x46 (= LD B,(HL))
+	    gen_ldidx(prefix, 0x46, "B", idxname, "(%s%c%s)");
+	}
+
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
+    default:
+	error("LD operand", tok.buf);
     }
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
-    default:
-	    error("LD operand", tok.buf);
-	}
-    
 }
 
 // LD C,~
@@ -930,37 +945,45 @@ static void gen_ldc(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x4E, "LD C,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD C,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD C,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD C,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD C,(label) not supported on Z80", tok.buf);
-    } else {
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x4E, "LD C,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD C,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD C,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD C,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD C,(label) not supported on Z80", tok.buf);
+	} else {
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) { prefix = 0xDD; idxname = "IX"; }
-        else if (eqv(tok.buf, "IY")) { prefix = 0xFD; idxname = "IY"; }
-        else { error("expected IX or IY", tok.buf); return; }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        gen_ldidx(prefix, 0x4E, "C", idxname, "(%s%c%s)");
-    }
+	    gen_ldidx(prefix, 0x4E, "C", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-	    error("LD operand", tok.buf);
-	}
+	error("LD operand", tok.buf);
+    }
 }
 
 
@@ -1014,47 +1037,48 @@ static void gen_ldd(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x56, "LD D,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD D,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD D,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD D,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD D,(label) not supported on Z80", tok.buf);
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x56, "LD D,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD D,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD D,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD D,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD D,(label) not supported on Z80", tok.buf);
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) {
-            prefix = 0xDD;
-            idxname = "IX";
-        } else if (eqv(tok.buf, "IY")) {
-            prefix = 0xFD;
-            idxname = "IY";
-        } else {
-            error("expected IX or IY", tok.buf);
-            return;
-        }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD D,(IX+d) / LD D,(IY+d)
-        // opcode = 0x56 (= LD D,(HL))
-        gen_ldidx(prefix, 0x56, "D", idxname, "(%s%c%s)");
-    }
+	    // LD D,(IX+d) / LD D,(IY+d)
+	    // opcode = 0x56 (= LD D,(HL))
+	    gen_ldidx(prefix, 0x56, "D", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-	    error("LD operand", tok.buf);
-	}
+	error("LD operand", tok.buf);
+    }
 }
 
 
@@ -1108,47 +1132,48 @@ static void gen_lde(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x5E, "LD E,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD E,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD E,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD E,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD E,(label) not supported on Z80", tok.buf);
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x5E, "LD E,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD E,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD E,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD E,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD E,(label) not supported on Z80", tok.buf);
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) {
-            prefix = 0xDD;
-            idxname = "IX";
-        } else if (eqv(tok.buf, "IY")) {
-            prefix = 0xFD;
-            idxname = "IY";
-        } else {
-            error("expected IX or IY", tok.buf);
-            return;
-        }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD E,(IX+d) / LD E,(IY+d)
-        // opcode = 0x5E (= LD E,(HL))
-        gen_ldidx(prefix, 0x5E, "E", idxname, "(%s%c%s)");
-    }
+	    // LD E,(IX+d) / LD E,(IY+d)
+	    // opcode = 0x5E (= LD E,(HL))
+	    gen_ldidx(prefix, 0x5E, "E", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-	    error("LD operand", tok.buf);
-	}
+	error("LD operand", tok.buf);
+    }
 }
 
 
@@ -1202,47 +1227,48 @@ static void gen_ldh(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x66, "LD H,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD H,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD H,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD H,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD H,(label) not supported on Z80", tok.buf);
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x66, "LD H,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD H,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD H,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD H,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD H,(label) not supported on Z80", tok.buf);
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) {
-            prefix = 0xDD;
-            idxname = "IX";
-        } else if (eqv(tok.buf, "IY")) {
-            prefix = 0xFD;
-            idxname = "IY";
-        } else {
-            error("expected IX or IY", tok.buf);
-            return;
-        }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD H,(IX+d) / LD H,(IY+d)
-        // opcode = 0x66 (= LD H,(HL))
-        gen_ldidx(prefix, 0x66, "H", idxname, "(%s%c%s)");
-    }
+	    // LD H,(IX+d) / LD H,(IY+d)
+	    // opcode = 0x66 (= LD H,(HL))
+	    gen_ldidx(prefix, 0x66, "H", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-	    error("LD operand", tok.buf);
-	}
+	error("LD operand", tok.buf);
+    }
 }
 
 
@@ -1296,47 +1322,48 @@ static void gen_ldl(void)
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
 	goto imediate;
-	case LPAREN:        // e.g. (HL)
-    gettoken();
-    if (eqv(tok.buf, "HL")) {
-        gen_op1(0x6E, "LD L,(HL)");
-    } else if (eqv(tok.buf, "BC")) {
-        error("LD L,(BC) not supported on Z80", tok.buf);
-    } else if (eqv(tok.buf, "DE")) {
-        error("LD L,(DE) not supported on Z80", tok.buf);
-    } else if (tok.type == INTEGER || tok.type == HEXNUM) {
-        error("LD L,(nn) not supported on Z80", tok.buf);
-    } else if (tok.type == SYMBOL && !eqv(tok.buf, "IX") && !eqv(tok.buf, "IY")) {
-        error("LD L,(label) not supported on Z80", tok.buf);
-    } else {
-        // IX+nn IY+nn
-        unsigned char prefix;
-        const char *idxname;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0x6E, "LD L,(HL)");
+	} else if (eqv(tok.buf, "BC")) {
+	    error("LD L,(BC) not supported on Z80", tok.buf);
+	} else if (eqv(tok.buf, "DE")) {
+	    error("LD L,(DE) not supported on Z80", tok.buf);
+	} else if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    error("LD L,(nn) not supported on Z80", tok.buf);
+	} else if (tok.type == SYMBOL && !eqv(tok.buf, "IX")
+		   && !eqv(tok.buf, "IY")) {
+	    error("LD L,(label) not supported on Z80", tok.buf);
+	} else {
+	    // IX+nn IY+nn
+	    unsigned char prefix;
+	    const char *idxname;
 
-        if (eqv(tok.buf, "IX")) {
-            prefix = 0xDD;
-            idxname = "IX";
-        } else if (eqv(tok.buf, "IY")) {
-            prefix = 0xFD;
-            idxname = "IY";
-        } else {
-            error("expected IX or IY", tok.buf);
-            return;
-        }
+	    if (eqv(tok.buf, "IX")) {
+		prefix = 0xDD;
+		idxname = "IX";
+	    } else if (eqv(tok.buf, "IY")) {
+		prefix = 0xFD;
+		idxname = "IY";
+	    } else {
+		error("expected IX or IY", tok.buf);
+		return;
+	    }
 
-        // LD L,(IX+d) / LD L,(IY+d)
-        // opcode = 0x6E (= LD L,(HL))
-        gen_ldidx(prefix, 0x6E, "L", idxname, "(%s%c%s)");
-    }
+	    // LD L,(IX+d) / LD L,(IY+d)
+	    // opcode = 0x6E (= LD L,(HL))
+	    gen_ldidx(prefix, 0x6E, "L", idxname, "(%s%c%s)");
+	}
 
-    gettoken();
-    if (tok.type != RPAREN)
-        error("LD indirect", tok.buf);
-    return;
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-	    error("LD operand", tok.buf);
-	}
+	error("LD operand", tok.buf);
+    }
 }
 
 // LD (HL),~
@@ -1942,6 +1969,14 @@ static void gen_dec(void)
 	} else if (eqv(tok.buf, "L")) {
 	    gen_op1(0x2d, "DEC L");
 	}
+    } else if (tok.type == LPAREN) {
+	gettoken();		// IX or IY
+	if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0x35, "DEC (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0x35, "DEC (IY");
+	}
+	gettoken();		// )
     }
 }
 
@@ -1966,6 +2001,14 @@ static void gen_inc(void)
 	} else if (eqv(tok.buf, "L")) {
 	    gen_op1(0x2c, "INC L");
 	}
+    } else if (tok.type == LPAREN) {
+	gettoken();		// (
+	if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0x34, "INC (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0x34, "INC (IY");
+	}
+	gettoken();		//)
     }
 }
 
@@ -1991,8 +2034,13 @@ static void gen_and(void)
 	}
     } else if (tok.type == LPAREN) {
 	gettoken();
-	if (eqv(tok.buf, "HL"))
+	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0xA6, "AND (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0xA6, "AND (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0xA6, "AND (IY");
+	}
 	gettoken();		// )
     } else if (tok.type == INTEGER || tok.type == HEXNUM) {
 	arg = strtol(tok.buf, NULL, 0);
@@ -2024,8 +2072,13 @@ static void gen_or(void)
 	}
     } else if (tok.type == LPAREN) {
 	gettoken();
-	if (eqv(tok.buf, "HL"))
+	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0xB6, "OR (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0xB6, "OR (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0xB6, "OR (IY");
+	}
 	gettoken();		// )
     } else if (tok.type == INTEGER || tok.type == HEXNUM) {
 	arg = strtol(tok.buf, NULL, 0);
@@ -2057,8 +2110,13 @@ static void gen_xor(void)
 	}
     } else if (tok.type == LPAREN) {
 	gettoken();
-	if (eqv(tok.buf, "HL"))
+	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0xAE, "XOR (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0xAE, "XOR (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0xAE, "XOR (IY");
+	}
 	gettoken();		// )
     } else if (tok.type == INTEGER || tok.type == HEXNUM) {
 	arg = strtol(tok.buf, NULL, 0);
@@ -2090,8 +2148,13 @@ static void gen_cp(void)
 	}
     } else if (tok.type == LPAREN) {
 	gettoken();
-	if (eqv(tok.buf, "HL"))
+	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0xBE, "CP (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0xBE, "CP (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0xBE, "CP (IY");
+	}
 	gettoken();		// )
     } else if (tok.type == INTEGER || tok.type == HEXNUM) {
 	arg = strtol(tok.buf, NULL, 0);
@@ -2099,6 +2162,46 @@ static void gen_cp(void)
 	strcat(str, tok.buf);
 	gen_op2(0xFE, arg, str);
     }
+}
+
+static void gen_idx(unsigned char prefix,
+		    unsigned char opcode, const char *mnem_rhs_fmt)
+{
+    char nn[32], str[64];
+    int sign = +1;
+    int arg = 0;
+    int signed_disp;
+    unsigned char disp8;
+
+    // + / -
+    gettoken();
+    if (tok.type == PLUS)
+	sign = +1;
+    else if (tok.type == MINUS)
+	sign = -1;
+    else
+	error("expected + or -", tok.buf);
+
+    // nn
+    gettoken();
+    strncpy(nn, tok.buf, sizeof(nn) - 1);
+    nn[sizeof(nn) - 1] = '\0';
+
+    if (!eval_imm_or_sym(&arg)) {
+	error("bad displacement", tok.buf);
+    }
+
+    signed_disp = sign * arg;
+    if (signed_disp < -128 || signed_disp > 127) {
+	error("index displacement out of range", nn);
+    }
+    disp8 = (unsigned char) (signed_disp & 0xFF);
+
+
+    snprintf(str, sizeof(str), "%s%c%s)", mnem_rhs_fmt,
+	     (sign > 0 ? '+' : '-'), nn);
+
+    gen_op4(prefix, opcode, disp8, str);
 }
 
 
@@ -2133,6 +2236,10 @@ static void gen_add(void)
 	    gettoken();
 	    if (eqv(tok.buf, "HL")) {
 		gen_op1(0x86, "ADD A,(HL)");
+	    } else if (eqv(tok.buf, "IX")) {
+		gen_idx(0xDD, 0x86, "ADD A,(IX");
+	    } else if (eqv(tok.buf, "IY")) {
+		gen_idx(0xFD, 0x86, "ADD A,(IY");
 	    }
 	    gettoken();		// )
 	    if (tok.type != RPAREN)
@@ -2180,6 +2287,10 @@ static void gen_adc(void)
 	    gettoken();
 	    if (eqv(tok.buf, "HL")) {
 		gen_op1(0x8E, "ADC A,(HL)");
+	    } else if (eqv(tok.buf, "IX")) {
+		gen_idx(0xDD, 0x8E, "ADC A,(IX");
+	    } else if (eqv(tok.buf, "IY")) {
+		gen_idx(0xFD, 0x8E, "ADC A,(IY");
 	    }
 	    gettoken();		// )
 	    if (tok.type != RPAREN)
@@ -2222,6 +2333,10 @@ static void gen_sub(void)
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
 	    gen_op1(0x96, "SUB (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0x96, "SUB (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0x96, "SUB (IY");
 	}
 	gettoken();		// )
 	if (tok.type != RPAREN)
@@ -2269,6 +2384,10 @@ static void gen_sbc(void)
 	    gettoken();
 	    if (eqv(tok.buf, "HL")) {
 		gen_op1(0x9E, "SBC A,(HL)");
+	    } else if (eqv(tok.buf, "IX")) {
+		gen_idx(0xDD, 0x9E, "SBC A,(IX");
+	    } else if (eqv(tok.buf, "IY")) {
+		gen_idx(0xFD, 0x9E, "SBC A,(IY");
 	    }
 	    gettoken();		// )
 	    if (tok.type != RPAREN)
