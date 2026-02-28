@@ -2252,7 +2252,55 @@ static void gen_add(void)
 	    strcat(str, tok.buf);
 	    gen_op2(0xc6, arg, str);
 	}
-    }
+    } else if(eqv(tok.buf,"HL")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op1(0x09, "ADD HL,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op1(0x19, "ADD HL,DE");
+			} else if (eqv(tok.buf, "HL")) {
+				 gen_op1(0x29, "ADD HL,HL");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op1(0x39, "ADD HL,SP");
+			}
+		}
+	}  else if(eqv(tok.buf,"IX")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op2(0xDD,0x09, "ADD IX,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op2(0xDD,0x19, "ADD IX,DE");
+			} else if (eqv(tok.buf, "IX")) {
+				 gen_op2(0xDD,0x29, "ADD IX,IX");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op2(0xDD,0x39, "ADD IX,SP");
+			}
+		}
+	} else if(eqv(tok.buf,"IY")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op2(0xFD,0x09, "ADD IY,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op2(0xFD,0x19, "ADD IY,DE");
+			} else if (eqv(tok.buf, "IY")) {
+				 gen_op2(0xFD,0x29, "ADD IY,IY");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op2(0xFD,0x39, "ADD IY,SP");
+			}
+		}
+	}
 }
 
 

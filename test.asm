@@ -315,3 +315,17 @@ BAR:    EQU 0x30
     DEC (IY+0x21)
     INC (IX+BAR)
     INC (IY+0x21)
+    ADD HL,BC 
+    ADD HL,DE 
+    ADD HL,HL 
+    ADD HL,SP
+    ADD IX,BC
+    ADD IX,DE
+    ADD IX,IX
+    ADD IX,SP
+    ADD IY,BC
+    ADD IY,DE
+    ADD IY,IY
+    ADD IY,SP
+    ADD IX,IX
+    ADD IY,IY
