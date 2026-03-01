@@ -96,6 +96,7 @@ static void gen_ldl(void);
 static void gen_ldhl(void);
 static void gen_ldix(void);
 static void gen_ldiy(void);
+static void gen_ldsp(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
@@ -116,9 +117,18 @@ static void gen_rst(void);
 static void gen_bit(void);
 static void gen_set(void);
 static void gen_res(void);
+static void gen_sla(void);
+static void gen_sra(void);
+static void gen_srl(void);
+static void gen_rrc(void);
+static void gen_rlc(void);
+static void gen_rl(void);
+static void gen_rr(void);
 static void gen_code1(char *op);
 static void gen_op1(unsigned int v, char *op);
 static void gen_idx(unsigned char prefix, unsigned char opcode,
+		    const char *mnem_rhs_fmt);
+static void gen_idx1(unsigned char prefix, unsigned char opcode,unsigned char opcode1,
 		    const char *mnem_rhs_fmt);
 static void gettoken(void);
 static void emit8(unsigned int v);
@@ -515,7 +525,22 @@ static void gen_code1(char *op)
 	gen_set();
     } else if (eqv(op, "RES")) {
 	gen_res();
-    } else if (tok.type == LABEL) {
+    } else if (eqv(op, "SLA")) {
+	gen_sla();
+    } else if (eqv(op, "SRA")) {
+	gen_sra();
+	} else if (eqv(op, "SRL")) {
+	gen_srl();
+    } else if (eqv(op, "RLC")) {
+	gen_rlc();
+    } else if (eqv(op, "RRC")) {
+	gen_rrc();
+	} else if (eqv(op, "RL")) {
+	gen_rl();
+    } else if (eqv(op, "RR")) {
+	gen_rr();
+    } 
+	else if (tok.type == LABEL) {
 	if (pass == 2) {
 	    strcpy(str, tok.buf);
 	    gettoken();
@@ -584,6 +609,19 @@ static void gen_op4(unsigned int v1, unsigned int v2, unsigned int arg,
 }
 
 
+// extended 4 bytes operation
+static void gen_op5(unsigned int v1, unsigned int v2, unsigned int arg, 
+		    unsigned int v3, char *op)
+{
+    if (pass == 2)
+	printf("%04X  ", INDEX);
+    emit8(v1);
+    emit8(v2);
+    emit8(arg);
+	emit8(v3);
+    if (pass == 2)
+	printf("\t%s\n", op);
+}
 
 // LD groupe
 static void gen_ld(void)
@@ -603,6 +641,8 @@ static void gen_ld(void)
 	gen_ldh();
     } else if (eqv(tok.buf, "L")) {
 	gen_ldl();
+    }  else if (eqv(tok.buf, "SP")) {
+	gen_ldsp();
     } else if (tok.type == LPAREN) {
 	gettoken();
 	if (eqv(tok.buf, "HL")) {
@@ -1366,6 +1406,26 @@ static void gen_ldl(void)
     }
 }
 
+// LD SP,~
+static void gen_ldsp(void)
+{
+    gettoken();			//comma
+    if (tok.type != COMMA)
+	error("LD comma expected", tok.buf);
+    gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op1(0xF9, "LD SP,HL");
+	    return;
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_op2(0xDD,0xF9, "LD SP,IX");
+	    return;
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_op2(0xFD,0xF9, "LD SP,IY");
+	    return;
+	} 
+}
+
+
 // LD (HL),~
 static void gen_ldhl(void)
 {
@@ -1784,7 +1844,18 @@ static void gen_jp(void)
 	strcpy(str, "JP ");
 	strcat(str, tok.buf);
 	gen_op3(0xc3, arg, str);
-    } else
+    }  else if(tok.type == LPAREN){
+		gettoken();
+		if (eqv(tok.buf,"HL")){
+			gen_op1(0xE9,"JP (HL)");
+		} else if (eqv(tok.buf,"IX")){
+			gen_op2(0xDD,0xE9,"JP (IX)");
+		} else if (eqv(tok.buf,"IY")){
+			gen_op2(0xFD,0xE9,"JP (IY)");
+		} 
+		gettoken();  // )
+	}
+	else
 	error("JP opetation", tok.buf);
 }
 
@@ -1968,16 +2039,16 @@ static void gen_dec(void)
 	    gen_op1(0x25, "DEC H");
 	} else if (eqv(tok.buf, "L")) {
 	    gen_op1(0x2d, "DEC L");
-	} 
-    } else if (tok.type == LPAREN){
-		gettoken();    // IX or IY
-	    if (eqv(tok.buf, "IX")) {
-		gen_idx(0xDD, 0xBE, "DEC (IX");
-	    } else if (eqv(tok.buf, "IY")) {
-		gen_idx(0xFD, 0xBE, "DEC (IY");
-	    }
-	    gettoken();   // )
 	}
+    } else if (tok.type == LPAREN) {
+	gettoken();		// IX or IY
+	if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0x35, "DEC (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0x35, "DEC (IY");
+	}
+	gettoken();		// )
+    }
 }
 
 
@@ -2000,16 +2071,16 @@ static void gen_inc(void)
 	    gen_op1(0x24, "INC H");
 	} else if (eqv(tok.buf, "L")) {
 	    gen_op1(0x2c, "INC L");
-	} 
-    } else if(tok.type == LPAREN){
-	    gettoken();		// (
-	    if (eqv(tok.buf, "IX")) {
-		gen_idx(0xDD, 0x34, "INC (IX");
-	    } else if (eqv(tok.buf, "IY")) {
-		gen_idx(0xFD, 0xBE, "INC (IY");
-	    }
-	    gettoken();		//)
 	}
+    } else if (tok.type == LPAREN) {
+	gettoken();		// (
+	if (eqv(tok.buf, "IX")) {
+	    gen_idx(0xDD, 0x34, "INC (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx(0xFD, 0x34, "INC (IY");
+	}
+	gettoken();		//)
+    }
 }
 
 
@@ -2205,6 +2276,48 @@ static void gen_idx(unsigned char prefix,
 }
 
 
+static void gen_idx1(unsigned char prefix,
+		    unsigned char opcode, unsigned char opcode1,const char *mnem_rhs_fmt)
+{
+    char nn[32], str[64];
+    int sign = +1;
+    int arg = 0;
+    int signed_disp;
+    unsigned char disp8;
+
+    // + / -
+    gettoken();
+    if (tok.type == PLUS)
+	sign = +1;
+    else if (tok.type == MINUS)
+	sign = -1;
+    else
+	error("expected + or -", tok.buf);
+
+    // nn
+    gettoken();
+    strncpy(nn, tok.buf, sizeof(nn) - 1);
+    nn[sizeof(nn) - 1] = '\0';
+
+    if (!eval_imm_or_sym(&arg)) {
+	error("bad displacement", tok.buf);
+    }
+
+    signed_disp = sign * arg;
+    if (signed_disp < -128 || signed_disp > 127) {
+	error("index displacement out of range", nn);
+    }
+    disp8 = (unsigned char) (signed_disp & 0xFF);
+
+
+    snprintf(str, sizeof(str), "%s%c%s)", mnem_rhs_fmt,
+	     (sign > 0 ? '+' : '-'), nn);
+
+    gen_op5(prefix, opcode, disp8,opcode1, str);
+}
+
+
+
 // ADD groupe
 static void gen_add(void)
 {
@@ -2252,7 +2365,55 @@ static void gen_add(void)
 	    strcat(str, tok.buf);
 	    gen_op2(0xc6, arg, str);
 	}
-    }
+    } else if(eqv(tok.buf,"HL")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op1(0x09, "ADD HL,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op1(0x19, "ADD HL,DE");
+			} else if (eqv(tok.buf, "HL")) {
+				 gen_op1(0x29, "ADD HL,HL");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op1(0x39, "ADD HL,SP");
+			}
+		}
+	}  else if(eqv(tok.buf,"IX")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op2(0xDD,0x09, "ADD IX,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op2(0xDD,0x19, "ADD IX,DE");
+			} else if (eqv(tok.buf, "IX")) {
+				 gen_op2(0xDD,0x29, "ADD IX,IX");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op2(0xDD,0x39, "ADD IX,SP");
+			}
+		}
+	} else if(eqv(tok.buf,"IY")){ 
+		gettoken();		//comma
+		if (tok.type != COMMA)
+	    	error("ADD operation expected commma", tok.buf);
+		gettoken();
+		if (tok.type == SYMBOL) {
+	    	if (eqv(tok.buf, "BC")) {
+				 gen_op2(0xFD,0x09, "ADD IY,BC");
+			} else if (eqv(tok.buf,"DE")) {
+				 gen_op2(0xFD,0x19, "ADD IY,DE");
+			} else if (eqv(tok.buf, "IY")) {
+				 gen_op2(0xFD,0x29, "ADD IY,IY");
+			} else if (eqv(tok.buf, "SP")) {
+				 gen_op2(0xFD,0x39, "ADD IY,SP");
+			}
+		}
+	}
 }
 
 
@@ -2417,6 +2578,10 @@ static void gen_push(void)
 	    gen_op1(0xe5, "PUSH HL");
 	} else if (eqv(tok.buf, "AF")) {
 	    gen_op1(0xf5, "PUSH AF");
+	}  else if (eqv(tok.buf, "IX")) {
+	    gen_op2(0xDD,0xe5, "PUSH IX");
+	}  else if (eqv(tok.buf, "IY")) {
+	    gen_op2(0xFD,0xe5, "PUSH IY");
 	} else
 	    error("PUSH operation", tok.buf);
     } else
@@ -2436,7 +2601,11 @@ static void gen_pop(void)
 	    gen_op1(0xe1, "POP HL");
 	} else if (eqv(tok.buf, "AF")) {
 	    gen_op1(0xf1, "POP AF");
-	} else
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_op2(0xDD,0xe1, "POP IX");
+	}else if (eqv(tok.buf, "IY")) {
+	    gen_op2(0xFD,0xe1, "POP IY");
+	}else
 	    error("POP operation", tok.buf);
     } else
 	error("POP operation", tok.buf);
@@ -2939,4 +3108,332 @@ static int eqv(char *x, char *y)
 	return (1);
     else
 	return (0);
+}
+
+
+
+// SLA groupe
+static void gen_sla(void)
+{
+
+    gettoken();
+    if (tok.type == SYMBOL) {
+	if (eqv(tok.buf, "A")) {
+	    gen_op2(0xCB,0x27, "SLA A");
+	} else if (eqv(tok.buf, "B")) {
+	    gen_op2(0xCB,0x20, "SLA B");
+	} else if (eqv(tok.buf, "C")) {
+	    gen_op2(0xCB,0x21, "SLA C");
+	} else if (eqv(tok.buf, "D")) {
+	    gen_op2(0xCB,0x22, "SLA D");
+	} else if (eqv(tok.buf, "E")) {
+	    gen_op2(0xCB,0x23, "SLA E");
+	} else if (eqv(tok.buf, "H")) {
+	    gen_op2(0xCB,0x24, "SLA H");
+	} else if (eqv(tok.buf, "L")) {
+	    gen_op2(0xCB,0x25, "SLA L");
+	}
+    } else if (tok.type == LPAREN) {
+	gettoken();
+	if (eqv(tok.buf, "HL")) {
+	    gen_op2(0xCB,0x26, "SLA (HL)");
+	} else if (eqv(tok.buf, "IX")) {
+	    gen_idx1(0xDD, 0xCB, 0x26, "SLA (IX");
+	} else if (eqv(tok.buf, "IY")) {
+	    gen_idx1(0xFD, 0xCB,0x26, "SLA (IY");
+	}
+	gettoken();		// )
+	if (tok.type != RPAREN)
+	    error("SLA operation expected right paren", tok.buf);
+    }
+
+}
+
+// SRA groupe
+static void gen_sra(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x2F, "SRA A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x28, "SRA B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x29, "SRA C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x2A, "SRA D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x2B, "SRA E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x2C, "SRA H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x2D, "SRA L");
+        } else {
+            error("SRA operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x2E, "SRA (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 2E
+            gen_idx1(0xDD, 0xCB, 0x2E, "SRA (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 2E
+            gen_idx1(0xFD, 0xCB, 0x2E, "SRA (IY");
+        } else {
+            error("SRA operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("SRA operation expected right paren", tok.buf);
+
+    } else {
+        error("SRA operation expected register or (..)", tok.buf);
+    }
+}
+
+// SRL groupe
+static void gen_srl(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x3F, "SRL A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x38, "SRL B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x39, "SRL C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x3A, "SRL D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x3B, "SRL E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x3C, "SRL H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x3D, "SRL L");
+        } else {
+            error("SRL operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x3E, "SRL (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 3E
+            gen_idx1(0xDD, 0xCB, 0x3E, "SRL (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 3E
+            gen_idx1(0xFD, 0xCB, 0x3E, "SRL (IY");
+        } else {
+            error("SRL operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("SRL operation expected right paren", tok.buf);
+
+    } else {
+        error("SRL operation expected register or (..)", tok.buf);
+    }
+}
+
+// RR groupe
+static void gen_rr(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x1F, "RR A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x18, "RR B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x19, "RR C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x1A, "RR D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x1B, "RR E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x1C, "RR H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x1D, "RR L");
+        } else {
+            error("RR operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x1E, "RR (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 1E
+            gen_idx1(0xDD, 0xCB, 0x1E, "RR (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 1E
+            gen_idx1(0xFD, 0xCB, 0x1E, "RR (IY");
+        } else {
+            error("RR operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("RR operation expected right paren", tok.buf);
+
+    } else {
+        error("RR operation expected register or (..)", tok.buf);
+    }
+}
+
+// RL groupe
+static void gen_rl(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x17, "RL A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x10, "RL B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x11, "RL C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x12, "RL D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x13, "RL E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x14, "RL H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x15, "RL L");
+        } else {
+            error("RL operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x16, "RL (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 16
+            gen_idx1(0xDD, 0xCB, 0x16, "RL (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 16
+            gen_idx1(0xFD, 0xCB, 0x16, "RL (IY");
+        } else {
+            error("RL operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("RL operation expected right paren", tok.buf);
+
+    } else {
+        error("RL operation expected register or (..)", tok.buf);
+    }
+}
+
+// RLC groupe
+static void gen_rlc(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x07, "RLC A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x00, "RLC B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x01, "RLC C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x02, "RLC D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x03, "RLC E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x04, "RLC H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x05, "RLC L");
+        } else {
+            error("RLC operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x06, "RLC (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 06
+            gen_idx1(0xDD, 0xCB, 0x06, "RLC (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 06
+            gen_idx1(0xFD, 0xCB, 0x06, "RLC (IY");
+        } else {
+            error("RLC operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("RLC operation expected right paren", tok.buf);
+
+    } else {
+        error("RLC operation expected register or (..)", tok.buf);
+    }
+}
+
+
+// RRC groupe
+static void gen_rrc(void)
+{
+    gettoken();
+
+    if (tok.type == SYMBOL) {
+        if (eqv(tok.buf, "A")) {
+            gen_op2(0xCB, 0x0F, "RRC A");
+        } else if (eqv(tok.buf, "B")) {
+            gen_op2(0xCB, 0x08, "RRC B");
+        } else if (eqv(tok.buf, "C")) {
+            gen_op2(0xCB, 0x09, "RRC C");
+        } else if (eqv(tok.buf, "D")) {
+            gen_op2(0xCB, 0x0A, "RRC D");
+        } else if (eqv(tok.buf, "E")) {
+            gen_op2(0xCB, 0x0B, "RRC E");
+        } else if (eqv(tok.buf, "H")) {
+            gen_op2(0xCB, 0x0C, "RRC H");
+        } else if (eqv(tok.buf, "L")) {
+            gen_op2(0xCB, 0x0D, "RRC L");
+        } else {
+            error("RRC operation expected register", tok.buf);
+        }
+
+    } else if (tok.type == LPAREN) {
+        gettoken();
+
+        if (eqv(tok.buf, "HL")) {
+            gen_op2(0xCB, 0x0E, "RRC (HL)");
+        } else if (eqv(tok.buf, "IX")) {
+            // emits: DD CB disp 0E
+            gen_idx1(0xDD, 0xCB, 0x0E, "RRC (IX");
+        } else if (eqv(tok.buf, "IY")) {
+            // emits: FD CB disp 0E
+            gen_idx1(0xFD, 0xCB, 0x0E, "RRC (IY");
+        } else {
+            error("RRC operation expected HL/IX/IY", tok.buf);
+        }
+
+        gettoken();      // should read ')'
+        if (tok.type != RPAREN)
+            error("RRC operation expected right paren", tok.buf);
+
+    } else {
+        error("RRC operation expected register or (..)", tok.buf);
+    }
 }

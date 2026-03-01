@@ -328,4 +328,111 @@ BAR:    EQU 0x30
     ADD IY,IY
     ADD IY,SP
     ADD IX,IX
-    ADD IY,IY
+    ADD IY,IY 
+
+; --- RLC group ---
+        RLC A
+        RLC B
+        RLC C
+        RLC D
+        RLC E
+        RLC H
+        RLC L
+        RLC (HL)
+        RLC (IX+2)
+        RLC (IY+3)
+
+; --- RRC group ---
+        RRC A
+        RRC B
+        RRC C
+        RRC D
+        RRC E
+        RRC H
+        RRC L
+        RRC (HL)
+        RRC (IX+2)
+        RRC (IY+3)
+
+; --- RL group ---
+        RL A
+        RL B
+        RL C
+        RL D
+        RL E
+        RL H
+        RL L
+        RL (HL)
+        RL (IX+2)
+        RL (IY+3)
+
+; --- RR group ---
+        RR A
+        RR B
+        RR C
+        RR D
+        RR E
+        RR H
+        RR L
+        RR (HL)
+        RR (IX+2)
+        RR (IY+3)
+
+; --- SLA group ---
+        SLA A
+        SLA B
+        SLA C
+        SLA D
+        SLA E
+        SLA H
+        SLA L
+        SLA (HL)
+        SLA (IX+2)
+        SLA (IY+3)
+
+; --- SRA group ---
+        SRA A
+        SRA B
+        SRA C
+        SRA D
+        SRA E
+        SRA H
+        SRA L
+        SRA (HL)
+        SRA (IX+2)
+        SRA (IY+3)
+
+; --- SRL group ---
+        SRL A
+        SRL B
+        SRL C
+        SRL D
+        SRL E
+        SRL H
+        SRL L
+        SRL (HL)
+        SRL (IX+2)
+        SRL (IY+3)
+
+; --- Displacement variants (important) ---
+        SLA (IX-1)
+        SRL (IY-0x10)
+        RR  (IX+FOO1)
+        RL  (IY+BAR)
+
+DONE:
+        JP DONE
+
+    PUSH IX 
+    PUSH IY 
+    POP IX 
+    POP IY
+    LD SP,HL 
+    LD SP,IX 
+    LD SP,IY 
+    JP (HL)
+    JP (IX)
+    JP (IY)
+    
+
+
