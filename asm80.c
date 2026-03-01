@@ -2851,7 +2851,11 @@ static void gen_ret(void)
 	if (tok.type == LABEL) {
 	    tok.flag = BACK;
 	    gen_op1(0xc9, "RET");
-	} else
+	} else if (tok.type == FILEEND) {
+	    tok.flag = BACK;
+	    gen_op1(0xc9, "RET");
+	} 
+	else
 	    error("RET opetation", tok.buf);
     }
 }

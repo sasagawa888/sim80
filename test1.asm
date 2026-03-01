@@ -26,4 +26,3 @@ NOADD:
     DEC  A
     JR   NZ,MUL16L
     RET
-    NOP
