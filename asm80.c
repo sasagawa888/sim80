@@ -100,6 +100,7 @@ static void gen_ldbc(void);
 static void gen_ldde(void);
 static void gen_ldhl1(void);
 static void gen_ldsp(void);
+static void gen_ldnn(void);
 static void gen_call(void);
 static void gen_ret(void);
 static void gen_jp(void);
@@ -140,7 +141,7 @@ static void error(char *ope, char *msg);
 static int sym_find(const char *name);
 static int sym_define(char *label, uint16_t addr);
 static int eqv(char *x, char *y);
-static void gen_include(char* include);
+static void gen_include(char *include);
 
 
 static void gettoken(void)
@@ -226,7 +227,7 @@ static void gettoken(void)
     case ',':
 	tok.type = COMMA;
 	break;
-    //case '.':
+	//case '.':
 	//tok.type = DOT;
 	//break;
     case '+':
@@ -476,11 +477,11 @@ static void gen_code1(char *op)
     int arg;
     char str[128];
 
-	if (eqv(op,"INCLUDE")){
+    if (eqv(op, "INCLUDE")) {
 	gettoken();
 	gen_include(tok.buf);
 	tok.type = 0;
-	}else if (eqv(op, "DB")) {
+    } else if (eqv(op, "DB")) {
 	gettoken();
 	if (!(tok.type == INTEGER || tok.type == HEXNUM))
 	    error("DB operand ", tok.buf);
@@ -665,11 +666,11 @@ static void gen_ld(void)
 	gen_ldl();
     } else if (eqv(tok.buf, "BC")) {
 	gen_ldbc();
-	} else if (eqv(tok.buf, "DE")) {
+    } else if (eqv(tok.buf, "DE")) {
 	gen_ldde();
-	} else if (eqv(tok.buf, "HL")) {
+    } else if (eqv(tok.buf, "HL")) {
 	gen_ldhl1();
-	} else if (eqv(tok.buf, "SP")) {
+    } else if (eqv(tok.buf, "SP")) {
 	gen_ldsp();
     } else if (tok.type == LPAREN) {
 	gettoken();
@@ -682,9 +683,9 @@ static void gen_ld(void)
 	    gen_ldix();
 	} else if (eqv(tok.buf, "IY")) {
 	    gen_ldiy();
+	} else {
+	    gen_ldnn();
 	}
-
-
     } else
 	error("LD operand ", tok.buf);
 }
@@ -1447,16 +1448,16 @@ static void gen_ldbc(void)
     arg = 0;
     switch (tok.type) {
     case SYMBOL:
-	    if (pass == 2) {
-		idx = sym_find(tok.buf);
-		if (idx < 0)
-		    error("undefined symbol", tok.buf);
-		arg = labels[idx].addr;
-	    }
-	  imediate:
-		sprintf(str,"LD BC,%s",tok.buf);
-	    gen_op3(0x01, arg, str);
-	    return;
+	if (pass == 2) {
+	    idx = sym_find(tok.buf);
+	    if (idx < 0)
+		error("undefined symbol", tok.buf);
+	    arg = labels[idx].addr;
+	}
+      imediate:
+	sprintf(str, "LD BC,%s", tok.buf);
+	gen_op3(0x01, arg, str);
+	return;
     case INTEGER:
     case HEXNUM:
 	arg = strtol(tok.buf, NULL, 0);
@@ -1465,9 +1466,9 @@ static void gen_ldbc(void)
 	gettoken();
 	if (tok.type == INTEGER || tok.type == HEXNUM) {
 	    arg = strtol(tok.buf, NULL, 0);
-		sprintf(str,"LD BC,(%s)",tok.buf);
-	    gen_op6(0xED,0x48, arg, str);	// LD BC,(nn)
-	} 
+	    sprintf(str, "LD BC,(%s)", tok.buf);
+	    gen_op6(0xED, 0x48, arg, str);	// LD BC,(nn)
+	}
 	gettoken();
 	if (tok.type != RPAREN)
 	    error("LD indirect", tok.buf);
@@ -1482,9 +1483,9 @@ static void gen_ldde(void)
 {
     char str[128];
 
-    gettoken();                 // comma
+    gettoken();			// comma
     if (tok.type != COMMA)
-        error("LD comma expected", tok.buf);
+	error("LD comma expected", tok.buf);
 
     gettoken();
     int arg, idx;
@@ -1492,36 +1493,36 @@ static void gen_ldde(void)
 
     switch (tok.type) {
     case SYMBOL:
-        if (pass == 2) {
-            idx = sym_find(tok.buf);
-            if (idx < 0)
-                error("undefined symbol", tok.buf);
-            arg = labels[idx].addr;
-        }
-imediate:
-        sprintf(str, "LD DE,%s", tok.buf);
-        gen_op3(0x11, arg, str);        // LD DE,nn
-        return;
+	if (pass == 2) {
+	    idx = sym_find(tok.buf);
+	    if (idx < 0)
+		error("undefined symbol", tok.buf);
+	    arg = labels[idx].addr;
+	}
+      imediate:
+	sprintf(str, "LD DE,%s", tok.buf);
+	gen_op3(0x11, arg, str);	// LD DE,nn
+	return;
 
     case INTEGER:
     case HEXNUM:
-        arg = strtol(tok.buf, NULL, 0);
-        goto imediate;
+	arg = strtol(tok.buf, NULL, 0);
+	goto imediate;
 
-    case LPAREN:                // e.g. (nn)
-        gettoken();
-        if (tok.type == INTEGER || tok.type == HEXNUM) {
-            arg = strtol(tok.buf, NULL, 0);
-            sprintf(str, "LD DE,(%s)", tok.buf);
-            gen_op6(0xED, 0x5B, arg, str);   // LD DE,(nn)
-        }
-        gettoken();
-        if (tok.type != RPAREN)
-            error("LD indirect", tok.buf);
-        return;
+    case LPAREN:		// e.g. (nn)
+	gettoken();
+	if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    arg = strtol(tok.buf, NULL, 0);
+	    sprintf(str, "LD DE,(%s)", tok.buf);
+	    gen_op6(0xED, 0x5B, arg, str);	// LD DE,(nn)
+	}
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-        error("LD operand", tok.buf);
+	error("LD operand", tok.buf);
     }
 }
 
@@ -1530,9 +1531,9 @@ static void gen_ldhl1(void)
 {
     char str[128];
 
-    gettoken();                 // comma
+    gettoken();			// comma
     if (tok.type != COMMA)
-        error("LD comma expected", tok.buf);
+	error("LD comma expected", tok.buf);
 
     gettoken();
     int arg, idx;
@@ -1540,36 +1541,36 @@ static void gen_ldhl1(void)
 
     switch (tok.type) {
     case SYMBOL:
-        if (pass == 2) {
-            idx = sym_find(tok.buf);
-            if (idx < 0)
-                error("undefined symbol", tok.buf);
-            arg = labels[idx].addr;
-        }
-imediate:
-        sprintf(str, "LD HL,%s", tok.buf);
-        gen_op3(0x21, arg, str);        // LD HL,nn
-        return;
+	if (pass == 2) {
+	    idx = sym_find(tok.buf);
+	    if (idx < 0)
+		error("undefined symbol", tok.buf);
+	    arg = labels[idx].addr;
+	}
+      imediate:
+	sprintf(str, "LD HL,%s", tok.buf);
+	gen_op3(0x21, arg, str);	// LD HL,nn
+	return;
 
     case INTEGER:
     case HEXNUM:
-        arg = strtol(tok.buf, NULL, 0);
-        goto imediate;
+	arg = strtol(tok.buf, NULL, 0);
+	goto imediate;
 
-    case LPAREN:                // LD HL,(nn)
-        gettoken();
-        if (tok.type == INTEGER || tok.type == HEXNUM) {
-            arg = strtol(tok.buf, NULL, 0);
-            sprintf(str, "LD HL,(%s)", tok.buf);
-            gen_op3(0x2A, arg, str);    // LD HL,(nn)
-        }
-        gettoken();
-        if (tok.type != RPAREN)
-            error("LD indirect", tok.buf);
-        return;
+    case LPAREN:		// LD HL,(nn)
+	gettoken();
+	if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    arg = strtol(tok.buf, NULL, 0);
+	    sprintf(str, "LD HL,(%s)", tok.buf);
+	    gen_op3(0x2A, arg, str);	// LD HL,(nn)
+	}
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
 
     default:
-        error("LD operand", tok.buf);
+	error("LD operand", tok.buf);
     }
 }
 
@@ -1591,6 +1592,56 @@ static void gen_ldsp(void)
 	gen_op2(0xFD, 0xF9, "LD SP,IY");
 	return;
     }
+}
+
+// LD (nn),~
+static void gen_ldnn(void)
+{
+    int arg, idx;
+    char str[128], nn[12];
+    arg = 0;
+
+    strcpy(nn, tok.buf);	// nn
+    switch (tok.type) {
+    case SYMBOL:
+	if (pass == 2) {
+	    idx = sym_find(tok.buf);
+	    if (idx < 0)
+		error("undefined symbol", tok.buf);
+	    arg = labels[idx].addr;
+	}
+      imediate:
+		goto regist;
+
+    case INTEGER:
+    case HEXNUM:
+	arg = strtol(tok.buf, NULL, 0);
+	goto imediate;
+    default:
+	error("LD operand", tok.buf);
+    }
+	regist:
+    gettoken();			// )
+    gettoken();			// comma
+    if (tok.type != COMMA) {
+	error("LD comma expected", tok.buf);
+    }
+    gettoken();			//register
+    if (eqv(tok.buf, "BC")) {
+		//ED 43 34 12    LD (0x1234),BC
+		sprintf(str,"LD (%s),BC",nn);
+		gen_op6(0xED,0x43,arg,str);
+    } else if (eqv(tok.buf, "DE")) {
+		//ED 53 34 12    LD (0x1234),DE
+		sprintf(str,"LD (%s),DE",nn);
+		gen_op6(0xED,0x53,arg,str);
+    } else if (eqv(tok.buf, "HL")) {
+		//22 34 12       LD (0x1234),HL
+		sprintf(str,"LD (%s),HL",nn);
+		gen_op3(0x22,arg,str);
+    } else
+	error("LD operand", tok.buf);
+
 }
 
 // LD (HL),~
@@ -3611,37 +3662,37 @@ static void gen_rrc(void)
 	INCLUDE filename.ext
 */
 
-static void gen_include(char* include)
+static void gen_include(char *include)
 {
-	FILE *save1;
-	int save2,save3;
-	char str[64];
+    FILE *save1;
+    int save2, save3;
+    char str[64];
 
-	if(include_flag)
-		error("INCLUDE nested!",include);
+    if (include_flag)
+	error("INCLUDE nested!", include);
 
-	strcpy(str,include);
-	save1 = input_stream;
-	save2 = INDEX;
-	save3 = lineno;
-	include_flag = 1;
-	input_stream = fopen(str, "r");
-    if (!input_stream) 
-		error("cannot open file: \n", include);
-	
-	if(pass == 1){
-		//pass1
-		printf("INCLUDE %s\n", include);
-		INDEX = save2;
-		lineno = 0;
-		gen_label();
-	} else if(pass == 2){
-		//pass2
-		INDEX = save2;
-		lineno = 0;
-		gen_code();
-	}
-	input_stream = save1;
-	lineno = save3;
-	include_flag = 0;
+    strcpy(str, include);
+    save1 = input_stream;
+    save2 = INDEX;
+    save3 = lineno;
+    include_flag = 1;
+    input_stream = fopen(str, "r");
+    if (!input_stream)
+	error("cannot open file: \n", include);
+
+    if (pass == 1) {
+	//pass1
+	printf("INCLUDE %s\n", include);
+	INDEX = save2;
+	lineno = 0;
+	gen_label();
+    } else if (pass == 2) {
+	//pass2
+	INDEX = save2;
+	lineno = 0;
+	gen_code();
+    }
+    input_stream = save1;
+    lineno = save3;
+    include_flag = 0;
 }

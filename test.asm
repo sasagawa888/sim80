@@ -440,4 +440,8 @@ DONE:
     LD DE,(0x1234)
     LD HL,0
     LD HL,(0x1234)
+    LD (0x1234),BC
+    LD (0x1234),DE
+    LD (0x1234),HL
+
 
