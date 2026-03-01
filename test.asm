@@ -82,7 +82,7 @@ ABCD:
     JR NC,ABCD 
     JR C,0x0051
     JR C,ABCD
-    JR 0x0051
+    JR 0x0081
     JR ABCD
     NOP
     LD A,A
@@ -287,13 +287,13 @@ ABCD1:
     LD A,FOO1
     JR NZ,0X0159
     JR NZ,ABCD1
-    JR Z,0x0159
+    JR Z,0x0169
     JR Z,ABCD1
-    JR NC,0x0159
+    JR NC,0x0189
     JR NC,ABCD1 
-    JR C,0x0159
+    JR C,0x0189
     JR C,ABCD1
-    JR 0x0153
+    JR 0x0183
     JR ABCD1
 BAR:    EQU 0x30
     ADD A,(IX+BAR)
@@ -434,6 +434,10 @@ DONE:
     JP (HL)
     JP (IX)
     JP (IY)
-    
-
+    LD BC,0
+    LD BC,(0x1234)
+    LD DE,0
+    LD DE,(0x1234)
+    LD HL,0
+    LD HL,(0x1234)
 

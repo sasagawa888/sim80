@@ -96,6 +96,9 @@ static void gen_ldl(void);
 static void gen_ldhl(void);
 static void gen_ldix(void);
 static void gen_ldiy(void);
+static void gen_ldbc(void);
+static void gen_ldde(void);
+static void gen_ldhl1(void);
 static void gen_ldsp(void);
 static void gen_call(void);
 static void gen_ret(void);
@@ -627,6 +630,21 @@ static void gen_op5(unsigned int v1, unsigned int v2, unsigned int arg,
 	printf("\t%s\n", op);
 }
 
+// extended 4 bytes operation little endian
+static void gen_op6(unsigned int v1, unsigned int v2, unsigned int arg,
+		    char *op)
+{
+    if (pass == 2)
+	printf("%04X  ", INDEX);
+    emit8(v1);
+    emit8(v2);
+    emit16(arg);
+    if (pass == 2)
+	printf("\t%s\n", op);
+}
+
+
+
 // LD groupe
 static void gen_ld(void)
 {
@@ -645,7 +663,13 @@ static void gen_ld(void)
 	gen_ldh();
     } else if (eqv(tok.buf, "L")) {
 	gen_ldl();
-    } else if (eqv(tok.buf, "SP")) {
+    } else if (eqv(tok.buf, "BC")) {
+	gen_ldbc();
+	} else if (eqv(tok.buf, "DE")) {
+	gen_ldde();
+	} else if (eqv(tok.buf, "HL")) {
+	gen_ldhl1();
+	} else if (eqv(tok.buf, "SP")) {
 	gen_ldsp();
     } else if (tok.type == LPAREN) {
 	gettoken();
@@ -1410,6 +1434,146 @@ static void gen_ldl(void)
     }
 }
 
+// LD BC,~
+static void gen_ldbc(void)
+{
+    char str[128];
+
+    gettoken();			//comma
+    if (tok.type != COMMA)
+	error("LD comma expected", tok.buf);
+    gettoken();
+    int arg, idx;
+    arg = 0;
+    switch (tok.type) {
+    case SYMBOL:
+	    if (pass == 2) {
+		idx = sym_find(tok.buf);
+		if (idx < 0)
+		    error("undefined symbol", tok.buf);
+		arg = labels[idx].addr;
+	    }
+	  imediate:
+		sprintf(str,"LD BC,%s",tok.buf);
+	    gen_op3(0x01, arg, str);
+	    return;
+    case INTEGER:
+    case HEXNUM:
+	arg = strtol(tok.buf, NULL, 0);
+	goto imediate;
+    case LPAREN:		// e.g. (HL)
+	gettoken();
+	if (tok.type == INTEGER || tok.type == HEXNUM) {
+	    arg = strtol(tok.buf, NULL, 0);
+		sprintf(str,"LD BC,(%s)",tok.buf);
+	    gen_op6(0xED,0x48, arg, str);	// LD BC,(nn)
+	} 
+	gettoken();
+	if (tok.type != RPAREN)
+	    error("LD indirect", tok.buf);
+	return;
+    default:
+	error("LD operand", tok.buf);
+    }
+}
+
+// LD DE,~
+static void gen_ldde(void)
+{
+    char str[128];
+
+    gettoken();                 // comma
+    if (tok.type != COMMA)
+        error("LD comma expected", tok.buf);
+
+    gettoken();
+    int arg, idx;
+    arg = 0;
+
+    switch (tok.type) {
+    case SYMBOL:
+        if (pass == 2) {
+            idx = sym_find(tok.buf);
+            if (idx < 0)
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;
+        }
+imediate:
+        sprintf(str, "LD DE,%s", tok.buf);
+        gen_op3(0x11, arg, str);        // LD DE,nn
+        return;
+
+    case INTEGER:
+    case HEXNUM:
+        arg = strtol(tok.buf, NULL, 0);
+        goto imediate;
+
+    case LPAREN:                // e.g. (nn)
+        gettoken();
+        if (tok.type == INTEGER || tok.type == HEXNUM) {
+            arg = strtol(tok.buf, NULL, 0);
+            sprintf(str, "LD DE,(%s)", tok.buf);
+            gen_op6(0xED, 0x5B, arg, str);   // LD DE,(nn)
+        }
+        gettoken();
+        if (tok.type != RPAREN)
+            error("LD indirect", tok.buf);
+        return;
+
+    default:
+        error("LD operand", tok.buf);
+    }
+}
+
+// LD HL,~
+static void gen_ldhl1(void)
+{
+    char str[128];
+
+    gettoken();                 // comma
+    if (tok.type != COMMA)
+        error("LD comma expected", tok.buf);
+
+    gettoken();
+    int arg, idx;
+    arg = 0;
+
+    switch (tok.type) {
+    case SYMBOL:
+        if (pass == 2) {
+            idx = sym_find(tok.buf);
+            if (idx < 0)
+                error("undefined symbol", tok.buf);
+            arg = labels[idx].addr;
+        }
+imediate:
+        sprintf(str, "LD HL,%s", tok.buf);
+        gen_op3(0x21, arg, str);        // LD HL,nn
+        return;
+
+    case INTEGER:
+    case HEXNUM:
+        arg = strtol(tok.buf, NULL, 0);
+        goto imediate;
+
+    case LPAREN:                // LD HL,(nn)
+        gettoken();
+        if (tok.type == INTEGER || tok.type == HEXNUM) {
+            arg = strtol(tok.buf, NULL, 0);
+            sprintf(str, "LD HL,(%s)", tok.buf);
+            gen_op3(0x2A, arg, str);    // LD HL,(nn)
+        }
+        gettoken();
+        if (tok.type != RPAREN)
+            error("LD indirect", tok.buf);
+        return;
+
+    default:
+        error("LD operand", tok.buf);
+    }
+}
+
+
 // LD SP,~
 static void gen_ldsp(void)
 {
@@ -1428,7 +1592,6 @@ static void gen_ldsp(void)
 	return;
     }
 }
-
 
 // LD (HL),~
 static void gen_ldhl(void)
