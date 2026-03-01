@@ -20,8 +20,8 @@ unsigned char ram[0x10000];
 unsigned short INDEX = 0;
 int pass;
 int lineno;
+int include_flag = 0;
 jmp_buf buf;
-
 
 int main(int argc, char *argv[])
 {
@@ -137,6 +137,7 @@ static void error(char *ope, char *msg);
 static int sym_find(const char *name);
 static int sym_define(char *label, uint16_t addr);
 static int eqv(char *x, char *y);
+static void gen_include(char* include);
 
 
 static void gettoken(void)
@@ -222,9 +223,9 @@ static void gettoken(void)
     case ',':
 	tok.type = COMMA;
 	break;
-    case '.':
-	tok.type = DOT;
-	break;
+    //case '.':
+	//tok.type = DOT;
+	//break;
     case '+':
 	tok.type = PLUS;
 	break;
@@ -239,7 +240,7 @@ static void gettoken(void)
 	    tok.buf[pos++] = c;
 	    while (((c = fgetc(input_stream)) != EOL)
 		   && (pos < BUFSIZE - 1) && (c != SPACE) && (c != '(')
-		   && (c != ')') && (c != ',') && (c != '.') && (c != '+')
+		   && (c != ')') && (c != ',') && (c != '+')
 		   && (c != '-') && (c != EOL)) {
 		tok.buf[pos++] = c;
 	    }
@@ -472,7 +473,11 @@ static void gen_code1(char *op)
     int arg;
     char str[128];
 
-    if (eqv(op, "DB")) {
+	if (eqv(op,"INCLUDE")){
+	gettoken();
+	gen_include(tok.buf);
+	tok.type = 0;
+	}else if (eqv(op, "DB")) {
 	gettoken();
 	if (!(tok.type == INTEGER || tok.type == HEXNUM))
 	    error("DB operand ", tok.buf);
@@ -3435,4 +3440,45 @@ static void gen_rrc(void)
     } else {
 	error("RRC operation expected register or (..)", tok.buf);
     }
+}
+
+
+//----------INCLUDE---------
+/*
+	INCLUDE filename.ext
+*/
+
+static void gen_include(char* include)
+{
+	FILE *save1;
+	int save2,save3;
+	char str[64];
+
+	if(include_flag)
+		error("INCLUDE nested!",include);
+
+	strcpy(str,include);
+	save1 = input_stream;
+	save2 = INDEX;
+	save3 = lineno;
+	include_flag = 1;
+	input_stream = fopen(str, "r");
+    if (!input_stream) 
+		error("cannot open file: \n", include);
+	
+	if(pass == 1){
+		//pass1
+		printf("INCLUDE %s\n", include);
+		INDEX = save2;
+		lineno = 0;
+		gen_label();
+	} else if(pass == 2){
+		//pass2
+		INDEX = save2;
+		lineno = 0;
+		gen_code();
+	}
+	input_stream = save1;
+	lineno = save3;
+	include_flag = 0;
 }

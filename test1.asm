@@ -1,5 +1,5 @@
 ; test
     NOP
-    LD(BLadf)A
+    LD (HL),A
 
     

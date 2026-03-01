@@ -1,3 +1,4 @@
+    INCLUDE test1.asm
 FOO1:   EQU 0x12
     LD A,(IX+1)
     LD B,(IX+1)
